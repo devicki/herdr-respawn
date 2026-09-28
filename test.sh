@@ -3,8 +3,8 @@
 # Needs the plugin linked first: herdr plugin link .
 set -euo pipefail
 unset HERDR_SOCKET_PATH HERDR_ENV HERDR_PANE_ID HERDR_TAB_ID HERDR_WORKSPACE_ID
-export HERDR_SESSION=resurrect-test
-state="${XDG_STATE_HOME:-$HOME/.local/state}/herdr/plugins/devicki.resurrect"
+export HERDR_SESSION=respawn-test
+state="${XDG_STATE_HOME:-$HOME/.local/state}/herdr/plugins/devicki.respawn"
 
 up() {
   herdr server >/dev/null 2>&1 &
@@ -25,10 +25,10 @@ trap cleanup EXIT
 up
 p1=$(herdr workspace create --cwd "$PWD" | jq -r .result.root_pane.pane_id)
 p2=$(herdr pane split "$p1" --direction right --no-focus | jq -r .result.pane.pane_id)
-herdr pane run "$p1" top >/dev/null
-herdr pane run "$p2" 'sleep 999' >/dev/null
+herdr pane run "$p1" ' top' >/dev/null
+herdr pane run "$p2" ' sleep 999' >/dev/null
 sleep 1
-herdr plugin action invoke devicki.resurrect.save >/dev/null
+herdr plugin action invoke devicki.respawn.save >/dev/null
 sleep 1
 herdr server stop >/dev/null
 sleep 1
