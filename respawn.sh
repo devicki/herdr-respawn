@@ -32,8 +32,10 @@ allow_json=$(
 
 save() {
   # A snapshot from an earlier server run is still waiting for restore; overwriting it now
-  # would record the bare shells the restart left behind.
-  if [ -f "$state" ] && [ "$(jq -r .instance "$state")" != "$instance" ]; then
+  # would record the bare shells the restart left behind. A minute into the run the startup
+  # restore is not coming (the plugin was disabled at startup), so saving takes over.
+  if [ -f "$state" ] && [ "$(jq -r .instance "$state")" != "$instance" ] &&
+    [ $(($(date +%s) - instance)) -lt 60 ]; then
     return 0
   fi
   ids=$("$H" pane list | jq -r '.result.panes[].pane_id') || return 1
