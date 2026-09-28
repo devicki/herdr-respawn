@@ -1,0 +1,32 @@
+id = "devicki.resurrect"
+name = "resurrect"
+version = "0.1.0"
+min_herdr_version = "0.9.1"
+platforms = ["linux", "macos"]
+description = "Relaunch lazygit, editors and other allowlisted TUIs in their panes after a Herdr server restart or reboot."
+
+# Herdr restores layout, cwd and agent sessions itself; this relaunches everything else on the allowlist.
+[[startup]]
+command = ["bash", "resurrect.sh", "restore"]
+
+[[actions]]
+id = "save"
+title = "resurrect: save now"
+command = ["bash", "resurrect.sh", "save"]
+
+# Snapshot whenever focus moves, so a pane's command is on disk before the server goes down.
+[[events]]
+on = "pane.focused"
+command = ["bash", "resurrect.sh", "save"]
+
+[[events]]
+on = "tab.focused"
+command = ["bash", "resurrect.sh", "save"]
+
+[[events]]
+on = "workspace.focused"
+command = ["bash", "resurrect.sh", "save"]
+
+[[events]]
+on = "pane.closed"
+command = ["bash", "resurrect.sh", "save"]
