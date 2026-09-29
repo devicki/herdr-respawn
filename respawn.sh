@@ -60,9 +60,13 @@ save() {
   ids=$("$H" pane list | jq -r '.result.panes[].pane_id') || return 1
   tmp=$(mktemp "$state.XXXXXX") || return 1
   for p in $ids; do
-    # `nvim --embed` is the child Neovim spawns for its UI; relaunching it would hang the pane.
+    # Judge the command the shell started, the process group leader, not whatever it spawned:
+    # lazygit runs `git log` in the same group, and saving that would relaunch the wrong thing.
+    # Without a leader, fall back to any member; `nvim --embed` is Neovim's own UI child.
     "$H" pane process-info --pane "$p" 2>/dev/null | jq -c --arg p "$p" --argjson allow "$allow_json" '
-      first(.result.process_info.foreground_processes[]
+      .result.process_info as $i
+      | [$i.foreground_processes[] | select(.pid == $i.foreground_process_group_id)] as $lead
+      | first((if ($lead | length) > 0 then $lead else $i.foreground_processes end)[]
         | select((.argv[0] // "" | split("/") | last | IN($allow[])) and (any(.argv[]; . == "--embed") | not)))
       | {pane: $p, argv, cwd}'
   done | jq -s --arg i "$instance" --arg d "${sock%/*}" '{instance: $i, session_dir: $d, panes: .}' >"$tmp" &&
@@ -92,8 +96,11 @@ restore() {
     esac
     cur=$(jq -r '.result.process_info.foreground_processes[0].cwd // ""' <<<"$info")
     # The leading space keeps the command out of shell history (bash ignorespace, zsh HIST_IGNORE_SPACE).
-    cmd=$(jq -r --arg cur "$cur" --arg a0 "$a0" '.argv[0] = $a0
-      | " " + (if .cwd != $cur then "cd \(.cwd | @sh) && " else "" end) + (.argv | @sh)' <<<"$e")
+    # Only words that need quoting get it: shells title the window with the typed line, and
+    # title tools read 'lazygit' as something other than lazygit (herdr.auto-title nested it).
+    cmd=$(jq -r --arg cur "$cur" --arg a0 "$a0" 'def q: if test("^[A-Za-z0-9_./:@%+=,-]+$") then . else @sh end;
+      .argv[0] = $a0
+      | " " + (if .cwd != $cur then "cd \(.cwd | q) && " else "" end) + (.argv | map(q) | join(" "))' <<<"$e")
     "$H" pane run "$p" "$cmd" >/dev/null && printf '%s %s\n' "$p" "${a0##*/}"
   done)
   if [ -n "$restored" ]; then
