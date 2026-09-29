@@ -56,6 +56,8 @@ allow_json=$(
 # - An agent with a reported session is saved as the command that resumes it, keeping the
 #   launch flags that set its permissions and model (`claude-yolo` aliases
 #   `claude --dangerously-skip-permissions`; Herdr's own resume would drop that).
+# - A plugin pane (reviewr, a memex sidebar) is saved as its plugin; Herdr brings those back
+#   as shells too. Its command is recognised by living in the plugin's root.
 pick='
   def agents: {
     claude: {pre: [], post: ["--resume"], keep: {"--dangerously-skip-permissions": 0,
@@ -76,6 +78,11 @@ pick='
   | [$i.foreground_processes[] | select(.pid == $i.foreground_process_group_id)] as $lead
   | (if ($lead | length) > 0 then $lead else $i.foreground_processes end) as $procs
   | $sessions[$p] as $s
+  | ([$plugins[] as $pl | $procs[]
+      | select((.argv[0] // "" | startswith($pl.root + "/"))
+          or ((name | IN("sh", "bash", "dash", "zsh", "node", "python", "python3", "bun", "deno", "ruby", "perl"))
+            and (.argv[1] // "" | startswith($pl.root + "/"))))
+      | {pl: $pl, proc: .}] | first) as $hit
   | if any($procs[]; name == "claude" and any(.argv[1:][]; . == "agents")) then
       # Claude Code'"'"'s agent view (`claude agents`) manages background sessions: it has no
       # session of its own to resume, and starting it again is safe, so it comes back as it
@@ -86,10 +93,22 @@ pick='
       | first($procs[] | select(name == $s.agent))
       | {pane: $p, cwd, agent: $s.agent,
          argv: ([.argv[0]] + $a.pre + (.argv | carry($a.keep)) + $a.post + [$s.value])}
+    elif $hit then
+      {pane: $p, cwd: $hit.proc.cwd, plugin: $hit.pl.id, pid: $hit.proc.pid, entrypoints: $hit.pl.panes}
     else
       first($procs[] | select((name | IN($allow[])) and (any(.argv[]; . == "--embed") | not)))
       | {pane: $p, argv, cwd}
     end'
+
+# Quote only words that need it: shells title the window with the typed line, and title tools
+# read 'lazygit' as something other than lazygit (herdr.auto-title nested it).
+q='def q: if test("^[A-Za-z0-9_./:@%+=,-]+$") then . else @sh end; '
+
+# A process's HERDR_PLUGIN_ENTRYPOINT_ID: from /proc on Linux, `ps -E` on macOS.
+entrypoint_of() {
+  { tr '\0' '\n' <"/proc/$1/environ" || ps -E -o command= -p "$1" | tr ' ' '\n'; } 2>/dev/null |
+    sed -n 's/^HERDR_PLUGIN_ENTRYPOINT_ID=//p' | head -n1
+}
 
 save() {
   # A snapshot from an earlier server run is still waiting for restore; overwriting it now
@@ -102,10 +121,24 @@ save() {
   panes=$("$H" pane list) || return 1
   # Agent sessions Herdr's integrations reported, by pane.
   sessions=$(jq -c '[.result.panes[] | select(.agent_session) | {key: .pane_id, value: .agent_session}] | from_entries' <<<"$panes") || return 1
+  # Plugins with pane entrypoints, to recognise their panes by where the command lives.
+  plugins=$("$H" plugin list --json 2>/dev/null |
+    jq -c '[.result.plugins[] | select((.panes // []) | length > 0) | {id: .plugin_id, root: .plugin_root, panes: [.panes[].id]}]') ||
+    plugins='[]'
   tmp=$(mktemp "$state.XXXXXX") || return 1
   for p in $(jq -r '.result.panes[].pane_id' <<<"$panes"); do
-    "$H" pane process-info --pane "$p" 2>/dev/null |
-      jq -c --arg p "$p" --argjson allow "$allow_json" --argjson sessions "$sessions" "$pick"
+    e=$("$H" pane process-info --pane "$p" 2>/dev/null |
+      jq -c --arg p "$p" --argjson allow "$allow_json" --argjson sessions "$sessions" --argjson plugins "$plugins" "$pick")
+    [ -n "$e" ] || continue
+    # A plugin pane: which entrypoint it runs is only in its environment when the plugin has
+    # several with one command (memex's desk, palette and sidebar).
+    if [ -n "$(jq -r '.plugin // empty' <<<"$e")" ]; then
+      e=$(jq -c --arg ep "$(entrypoint_of "$(jq -r .pid <<<"$e")")" '
+        (if .entrypoints | index($ep) then $ep elif (.entrypoints | length) == 1 then .entrypoints[0] else null end) as $ep
+        | if $ep then del(.pid, .entrypoints) + {entrypoint: $ep} else empty end' <<<"$e")
+      [ -n "$e" ] || continue
+    fi
+    printf '%s\n' "$e"
   done | jq -s --arg i "$instance" --arg d "${sock%/*}" '{instance: $i, session_dir: $d, panes: .}' >"$tmp" &&
     mv "$tmp" "$state" || rm -f "$tmp"
 }
@@ -127,6 +160,7 @@ restore() {
     t == "session" && /^[[:space:]]*resume_agents_on_restore[[:space:]]*=[[:space:]]*false/ { off = 1 }
     t == "" && /^[[:space:]]*session\.resume_agents_on_restore[[:space:]]*=[[:space:]]*false/ { off = 1 }
     END { exit !off }' "$cfg" && agents=true
+  plugins_now=$("$H" plugin list --json 2>/dev/null)
   restored=$(jq -c '.panes[]' "$state" | while IFS= read -r e; do
     p=$(jq -r .pane <<<"$e")
     [ "$agents" = true ] || [ -z "$(jq -r '.agent // empty' <<<"$e")" ] || continue
@@ -135,19 +169,33 @@ restore() {
     sh=$(jq -r '.result.process_info.foreground_processes[0].argv[0] // "" | split("/") | last | ltrimstr("-")' <<<"$info")
     # The leading ( on each pattern keeps bash 3.2, macOS's /bin/bash, parsing a case inside $( ).
     case "$sh" in (bash | zsh | fish | sh | dash | ksh) ;; (*) continue ;; esac
-    # A saved absolute path may be gone after a reboot (tmp mounts, Nix, AppImage); let the shell's PATH find it by name.
-    a0=$(jq -r '.argv[0]' <<<"$e")
-    case "$a0" in
-    (/tmp/* | /private/tmp/* | /var/folders/* | /private/var/folders/* | /nix/store/*) a0=${a0##*/} ;;
-    (/*) [ -x "$a0" ] || a0=${a0##*/} ;;
-    esac
     cur=$(jq -r '.result.process_info.foreground_processes[0].cwd // ""' <<<"$info")
     # The leading space keeps the command out of shell history (bash ignorespace, zsh HIST_IGNORE_SPACE).
-    # Only words that need quoting get it: shells title the window with the typed line, and
-    # title tools read 'lazygit' as something other than lazygit (herdr.auto-title nested it).
-    cmd=$(jq -r --arg cur "$cur" --arg a0 "$a0" 'def q: if test("^[A-Za-z0-9_./:@%+=,-]+$") then . else @sh end;
-      .argv[0] = $a0
-      | " " + (if .cwd != $cur then "cd \(.cwd | q) && " else "" end) + (.argv | map(q) | join(" "))' <<<"$e")
+    plug=$(jq -r '.plugin // empty' <<<"$e")
+    if [ -n "$plug" ]; then
+      # The plugin's current command for that entrypoint (its root moves on reinstall), with the
+      # environment Herdr gives plugin panes; exec, so quitting it closes the pane as before.
+      a0=$plug
+      cmd=$(jq -r --argjson e "$e" --arg cur "$cur" --arg cfg "$("$H" plugin config-dir "$plug" 2>/dev/null)" \
+        --arg st "${dir%/*}/$plug" "$q"'
+        first(.result.plugins[] | select(.plugin_id == $e.plugin and .enabled)) as $pl
+        | first($pl.panes[] | select(.id == $e.entrypoint)) as $ep
+        | " " + (if $e.cwd != $cur then "cd \($e.cwd | q) && " else "" end) + "exec "
+          + (["env", "HERDR_PLUGIN_ID=\($pl.plugin_id)", "HERDR_PLUGIN_ROOT=\($pl.plugin_root)",
+              "HERDR_PLUGIN_CONFIG_DIR=\($cfg)", "HERDR_PLUGIN_STATE_DIR=\($st)",
+              "HERDR_PLUGIN_ENTRYPOINT_ID=\($ep.id)"] + $ep.command | map(q) | join(" "))' <<<"$plugins_now")
+      [ -n "$cmd" ] || continue
+    else
+      # A saved absolute path may be gone after a reboot (tmp mounts, Nix, AppImage); let the shell's PATH find it by name.
+      a0=$(jq -r '.argv[0]' <<<"$e")
+      case "$a0" in
+      (/tmp/* | /private/tmp/* | /var/folders/* | /private/var/folders/* | /nix/store/*) a0=${a0##*/} ;;
+      (/*) [ -x "$a0" ] || a0=${a0##*/} ;;
+      esac
+      cmd=$(jq -r --arg cur "$cur" --arg a0 "$a0" "$q"'
+        .argv[0] = $a0
+        | " " + (if .cwd != $cur then "cd \(.cwd | q) && " else "" end) + (.argv | map(q) | join(" "))' <<<"$e")
+    fi
     "$H" pane run "$p" "$cmd" >/dev/null && printf '%s %s\n' "$p" "${a0##*/}"
   done)
   if [ -n "$restored" ]; then

@@ -2,7 +2,8 @@
 # Reboot-like check with a client attached, the way a laptop reconnects after the host reboots:
 # an isolated Herdr (own HOME, only this plugin linked) is started by its client, TUIs run in the
 # focused pane, a background tab and a background workspace next to a command off the allowlist,
-# plus a stand-in claude started with --dangerously-skip-permissions, then the server gets SIGTERM
+# plus a stand-in claude started with --dangerously-skip-permissions and a stand-in plugin pane
+# opened on the second of two entrypoints that share one command, then the server gets SIGTERM
 # and the client dies with it, and a new client starts the server again. Herdr's own agent resume
 # is off, so the agent must come back through respawn with its flag. Needs tmux, jq, htop, vim
 # and python3.
@@ -45,8 +46,30 @@ printf 'onboarding = false\n[update]\nversion_check = false\nmanifest_check = fa
 # A stand-in claude: a process named claude that keeps its arguments and waits.
 printf '#!/usr/bin/env bash\nexec -a claude python3 -c "import time; time.sleep(1e9)" "$@"\n' >"$work/bin/claude"
 chmod +x "$work/bin/claude"
+# A stand-in plugin whose two pane entrypoints run the same command, like memex's.
+mkdir -p "$work/viewer/bin"
+printf '#!/usr/bin/env bash\nwhile :; do sleep 1; done\n' >"$work/viewer/bin/viewer"
+chmod +x "$work/viewer/bin/viewer"
+cat >"$work/viewer/herdr-plugin.toml" <<'EOF'
+id = "test.viewer"
+name = "viewer"
+version = "0.0.1"
+min_herdr_version = "0.9.1"
+platforms = ["linux", "macos"]
+[[panes]]
+id = "main"
+title = "viewer"
+placement = "split"
+command = ["sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/viewer\""]
+[[panes]]
+id = "other"
+title = "viewer"
+placement = "zoomed"
+command = ["sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/viewer\""]
+EOF
 printf 'hello\n' >"$work/proj/notes.txt"
 h plugin link "$here" >/dev/null
+h plugin link "$work/viewer" >/dev/null
 
 client
 p1=$(h pane list | jq -r '.result.panes[0].pane_id')
@@ -62,6 +85,8 @@ h pane run "$p4" ' sleep 999' >/dev/null
 h pane run "$p5" ' claude --dangerously-skip-permissions -c' >/dev/null
 h pane report-agent-session "$p5" --source herdr:claude --agent claude --agent-session-id abc123 >/dev/null
 h pane run "$p6" ' claude --dangerously-skip-permissions agents' >/dev/null # agent view: no session
+p7=$(h plugin pane open --plugin test.viewer --entrypoint other --placement split --target-pane "$p3" \
+  --direction down --cwd "$work/proj" --no-focus | jq -r .result.plugin_pane.pane.pane_id)
 sleep 1.5
 h plugin action invoke devicki.respawn.save >/dev/null
 sleep 1
@@ -93,5 +118,10 @@ case "$(fg_of "$p6")" in
 (claude*" --dangerously-skip-permissions agents") ;;
 (*) echo "FAIL: $p6 runs '$(fg_of "$p6")', want Claude's agent view back" >&2; fail=1 ;;
 esac
+# The plugin pane: its command again, with the plugin environment of the entrypoint it ran.
+pid=$(h pane process-info --pane "$p7" | jq -r '.result.process_info.foreground_process_group_id')
+case "$(fg_of "$p7")" in (*/viewer/bin/viewer) ;; (*) echo "FAIL: $p7 runs '$(fg_of "$p7")', want the plugin pane back" >&2; fail=1 ;; esac
+tr '\0' '\n' </proc/"$pid"/environ 2>/dev/null | grep -qx 'HERDR_PLUGIN_ENTRYPOINT_ID=other' ||
+  { echo "FAIL: $p7 did not come back as entrypoint 'other'" >&2; fail=1; }
 [ "$fail" -eq 0 ] && echo PASS
 exit "$fail"
