@@ -46,10 +46,16 @@ save() {
       first(.result.process_info.foreground_processes[]
         | select((.argv[0] // "" | split("/") | last | IN($allow[])) and (any(.argv[]; . == "--embed") | not)))
       | {pane: $p, argv, cwd}'
-  done | jq -s --arg i "$instance" '{instance: $i, panes: .}' >"$tmp" && mv "$tmp" "$state" || rm -f "$tmp"
+  done | jq -s --arg i "$instance" --arg d "${sock%/*}" '{instance: $i, session_dir: $d, panes: .}' >"$tmp" &&
+    mv "$tmp" "$state" || rm -f "$tmp"
 }
 
 restore() {
+  # Snapshots of named sessions deleted since (`herdr session delete` removes their directory).
+  for f in "$dir"/*.json; do
+    d=$(jq -r '.session_dir // empty' "$f" 2>/dev/null)
+    [ -z "$d" ] || [ -d "$d" ] || rm -f "$f"
+  done
   [ -f "$state" ] || return 0
   [ "$(jq -r .instance "$state")" != "$instance" ] || return 0
   restored=$(jq -c '.panes[]' "$state" | while IFS= read -r e; do

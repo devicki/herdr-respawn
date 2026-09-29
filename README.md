@@ -1,5 +1,7 @@
 # herdr-respawn
 
+English | [한국어](README.ko.md)
+
 Bring back lazygit, editors and other TUIs in their panes after a [Herdr](https://herdr.dev) server restart or machine reboot.
 
 Herdr already restores workspaces, tabs, panes, cwd and supported agent sessions (Claude Code, Codex, ...) on its own. Every other pane comes back as a bare shell. This plugin relaunches the allowlisted command that was running in each pane, automatically, as soon as the server is back.
@@ -7,22 +9,22 @@ Herdr already restores workspaces, tabs, panes, cwd and supported agent sessions
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.1
+herdr plugin install devicki/herdr-respawn --ref v0.2.2
 ```
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
 
-Requires `bash` and `jq`.
+Requires `bash` and `jq`. Install it in every account that runs a Herdr server; each server keeps its own snapshot.
 
 ## How it works
 
 - **Save**: on every `pane.focused`, `tab.focused`, `workspace.focused`, `pane.closed` and `pane.agent_status_changed` event, each pane's foreground command (argv) and cwd are written to the plugin state dir if the command is on the allowlist. Run the `respawn: save now` action to save on demand.
-- **Restore**: the startup hook runs once Herdr has restored the session. It types each saved command back into its pane with `herdr pane run`, but only when that pane is back at a bare shell prompt. A pane that is still running something, for example after a live handoff, is left alone.
+- **Restore**: the startup hook runs once Herdr has restored the session. It types each saved command back into its pane with `herdr pane run`, in background tabs and workspaces too, but only when that pane is back at a bare shell prompt. A pane that is still running something, for example after a live handoff, is left alone.
   - The command gets a leading space so it stays out of shell history (bash `HISTCONTROL=ignorespace`/`ignoreboth`, zsh `setopt HIST_IGNORE_SPACE`).
   - It is prefixed with `cd <dir> &&` when the pane's shell is not already in the saved directory. If that directory no longer exists, the command does not run.
   - An absolute program path that is gone after the reboot (or lives under a temp dir or `/nix/store`) is replaced by the program name, so the shell's `PATH` finds it.
   - A toast summarizes what was restored. Herdr only shows it if a client is attached when the server starts.
-- A corrupt snapshot is moved aside to `<file>.bad` and saving starts fresh.
+- A corrupt snapshot is moved aside to `<file>.bad` and saving starts fresh. Snapshots of named sessions deleted since are removed at startup.
 
 ## Allowlist
 
@@ -69,7 +71,7 @@ pane_history = true
 Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.1 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.2.2 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -77,10 +79,12 @@ herdr plugin uninstall devicki.respawn
 
 ```sh
 herdr plugin link .
-./test.sh   # throwaway named session: save, restart, expect the relaunch
+./test.sh   # isolated Herdr started by its client; reboot-like SIGTERM; expect the relaunch
 ```
 
-To release, bump `version` in `herdr-plugin.toml`, update the `--ref` in this README, commit, then `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
+`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist. It needs `tmux`, `htop` and `vim`, and never touches your own Herdr session.
+
+To release, bump `version` in `herdr-plugin.toml`, update the `--ref` in both READMEs, commit, then `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
 
 ## License
 
