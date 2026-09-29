@@ -9,7 +9,7 @@ Herdr already restores workspaces, tabs, panes, cwd and supported agent sessions
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.5
+herdr plugin install devicki/herdr-respawn --ref v0.3.0
 ```
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
@@ -20,7 +20,7 @@ Install it in every account that runs a Herdr server; each server keeps its own 
 
 ## How it works
 
-- **Save**: on every `pane.focused`, `tab.focused`, `workspace.focused`, `pane.closed` and `pane.agent_status_changed` event, each pane's foreground command (argv) and cwd are written to the plugin state dir if the command is on the allowlist. Run the `respawn: save now` action to save on demand.
+- **Save**: on every `pane.focused`, `tab.focused`, `workspace.focused`, `pane.closed` and `pane.agent_status_changed` event, each pane's foreground command (argv) and cwd are written to the plugin state dir if the command is on the allowlist. Agents are saved with their session id; see [Agents keep their launch flags](#agents-keep-their-launch-flags). Run the `respawn: save now` action to save on demand.
 - **Restore**: the startup hook runs once Herdr has restored the session. It types each saved command back into its pane with `herdr pane run`, in background tabs and workspaces too, but only when that pane is back at a bare shell prompt. A pane that is still running something, for example after a live handoff, is left alone.
   - The command gets a leading space so it stays out of shell history (bash `HISTCONTROL=ignorespace`/`ignoreboth`, zsh `setopt HIST_IGNORE_SPACE`).
   - It is prefixed with `cd <dir> &&` when the pane's shell is not already in the saved directory. If that directory no longer exists, the command does not run.
@@ -44,6 +44,30 @@ npm
 # never relaunch top
 !top
 ```
+
+## Agents keep their launch flags
+
+Herdr resumes Claude Code, Codex, Devin and other agents on its own, but always as a plain `claude --resume <id>`, so the flags they were started with are lost. A session opened with `claude --dangerously-skip-permissions` (a `claude-yolo` alias, say) comes back asking for permissions again: Claude Code deliberately does not restore bypass mode on resume.
+
+To keep the flags, turn off Herdr's own agent resume in `config.toml`:
+
+```toml
+[session]
+resume_agents_on_restore = false
+```
+
+respawn then resumes Claude Code, Codex and Devin itself, with the session id Herdr recorded and these launch flags:
+
+| Agent | Resumed as | Flags kept |
+| --- | --- | --- |
+| Claude Code | `claude <flags> --resume <id>` | `--dangerously-skip-permissions`, `--allow-dangerously-skip-permissions`, `--permission-mode`, `--model` |
+| Codex | `codex resume <flags> <id>` | `--dangerously-bypass-approvals-and-sandbox`, `-s`/`--sandbox`, `-a`/`--ask-for-approval`, `-m`/`--model` |
+| Devin | `devin <flags> --resume <id>` | `--permission-mode`, `--model` |
+
+Other flags and any prompt are dropped. With Herdr's agent resume on (the default), respawn leaves agents alone, since two resumers would type into the same pane.
+
+- With it off, agents other than these three come back as plain shells. Keep it on if you use them.
+- The agent has to run under its own name (`claude`, `codex`, `devin`); one started through a wrapper such as `npx` is not recognized.
 
 ## Limitations
 
@@ -73,7 +97,7 @@ pane_history = true
 Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.5 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.3.0 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -84,7 +108,7 @@ herdr plugin link .
 ./test.sh   # isolated Herdr started by its client; reboot-like SIGTERM; expect the relaunch
 ```
 
-`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist. It needs `tmux`, `htop` and `vim`, runs on Linux only (it finds its server through `/proc`), and never touches your own Herdr session.
+`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist and a stand-in `claude --dangerously-skip-permissions` that must come back with its flag. It needs `tmux`, `htop`, `vim` and `python3`, runs on Linux only (it finds its server through `/proc`), and never touches your own Herdr session.
 
 To release, bump `version` in `herdr-plugin.toml`, update the `--ref` in both READMEs, commit, then `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
 

@@ -49,6 +49,43 @@ allow_json=$(
     jq -sc 'map(select(length > 0)) | map(select(startswith("!") | not)) - map(select(startswith("!")) | ltrimstr("!"))'
 )
 
+# One pane's snapshot entry, from its process info.
+# - Judge the command the shell started, the process group leader, not whatever it spawned:
+#   lazygit runs `git log` in the same group, and saving that would relaunch the wrong thing.
+#   Without a leader, fall back to any member; `nvim --embed` is Neovim's own UI child.
+# - An agent with a reported session is saved as the command that resumes it, keeping the
+#   launch flags that set its permissions and model (`claude-yolo` aliases
+#   `claude --dangerously-skip-permissions`; Herdr's own resume would drop that).
+pick='
+  def agents: {
+    claude: {pre: [], post: ["--resume"], keep: {"--dangerously-skip-permissions": 0,
+      "--allow-dangerously-skip-permissions": 0, "--permission-mode": 1, "--model": 1}},
+    codex: {pre: ["resume"], post: [], keep: {"--dangerously-bypass-approvals-and-sandbox": 0,
+      "-s": 1, "--sandbox": 1, "-a": 1, "--ask-for-approval": 1, "-m": 1, "--model": 1}},
+    devin: {pre: [], post: ["--resume"], keep: {"--permission-mode": 1, "--model": 1}}
+  };
+  # The flags in $keep, with as many values as each takes; everything else (prompts, the old
+  # --resume/--continue) is dropped.
+  def carry($keep): reduce .[1:][] as $t ({out: [], take: 0};
+    if .take > 0 then .out += [$t] | .take -= 1
+    elif $keep | has($t | split("=")[0]) then
+      .out += [$t] | .take = (if $t | contains("=") then 0 else $keep[$t | split("=")[0]] end)
+    else . end) | .out;
+  def name: .argv[0] // "" | split("/") | last;
+  .result.process_info as $i
+  | [$i.foreground_processes[] | select(.pid == $i.foreground_process_group_id)] as $lead
+  | (if ($lead | length) > 0 then $lead else $i.foreground_processes end) as $procs
+  | $sessions[$p] as $s
+  | if $s and (agents | has($s.agent)) and any($procs[]; name == $s.agent) then
+      agents[$s.agent] as $a
+      | first($procs[] | select(name == $s.agent))
+      | {pane: $p, cwd, agent: $s.agent,
+         argv: ([.argv[0]] + $a.pre + (.argv | carry($a.keep)) + $a.post + [$s.value])}
+    else
+      first($procs[] | select((name | IN($allow[])) and (any(.argv[]; . == "--embed") | not)))
+      | {pane: $p, argv, cwd}
+    end'
+
 save() {
   # A snapshot from an earlier server run is still waiting for restore; overwriting it now
   # would record the bare shells the restart left behind. A minute into the run the startup
@@ -57,18 +94,13 @@ save() {
     [ $(($(date +%s) - instance)) -lt 60 ]; then
     return 0
   fi
-  ids=$("$H" pane list | jq -r '.result.panes[].pane_id') || return 1
+  panes=$("$H" pane list) || return 1
+  # Agent sessions Herdr's integrations reported, by pane.
+  sessions=$(jq -c '[.result.panes[] | select(.agent_session) | {key: .pane_id, value: .agent_session}] | from_entries' <<<"$panes") || return 1
   tmp=$(mktemp "$state.XXXXXX") || return 1
-  for p in $ids; do
-    # Judge the command the shell started, the process group leader, not whatever it spawned:
-    # lazygit runs `git log` in the same group, and saving that would relaunch the wrong thing.
-    # Without a leader, fall back to any member; `nvim --embed` is Neovim's own UI child.
-    "$H" pane process-info --pane "$p" 2>/dev/null | jq -c --arg p "$p" --argjson allow "$allow_json" '
-      .result.process_info as $i
-      | [$i.foreground_processes[] | select(.pid == $i.foreground_process_group_id)] as $lead
-      | first((if ($lead | length) > 0 then $lead else $i.foreground_processes end)[]
-        | select((.argv[0] // "" | split("/") | last | IN($allow[])) and (any(.argv[]; . == "--embed") | not)))
-      | {pane: $p, argv, cwd}'
+  for p in $(jq -r '.result.panes[].pane_id' <<<"$panes"); do
+    "$H" pane process-info --pane "$p" 2>/dev/null |
+      jq -c --arg p "$p" --argjson allow "$allow_json" --argjson sessions "$sessions" "$pick"
   done | jq -s --arg i "$instance" --arg d "${sock%/*}" '{instance: $i, session_dir: $d, panes: .}' >"$tmp" &&
     mv "$tmp" "$state" || rm -f "$tmp"
 }
@@ -81,8 +113,18 @@ restore() {
   done
   [ -f "$state" ] || return 0
   [ "$(jq -r .instance "$state")" != "$instance" ] || return 0
+  # Herdr resumes agents itself unless `[session] resume_agents_on_restore = false`. Two
+  # resumers would type into each other's pane, so saved agents are ours only when it is off.
+  cfg="${HERDR_CONFIG_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/herdr/config.toml}"
+  agents=false
+  [ -f "$cfg" ] && awk '
+    /^[[:space:]]*\[/ { t = $0; gsub(/[][[:space:]]/, "", t) }
+    t == "session" && /^[[:space:]]*resume_agents_on_restore[[:space:]]*=[[:space:]]*false/ { off = 1 }
+    t == "" && /^[[:space:]]*session\.resume_agents_on_restore[[:space:]]*=[[:space:]]*false/ { off = 1 }
+    END { exit !off }' "$cfg" && agents=true
   restored=$(jq -c '.panes[]' "$state" | while IFS= read -r e; do
     p=$(jq -r .pane <<<"$e")
+    [ "$agents" = true ] || [ -z "$(jq -r '.agent // empty' <<<"$e")" ] || continue
     info=$("$H" pane process-info --pane "$p" 2>/dev/null) || continue
     # Only type into a pane that came back as a bare shell; anything else is live (handoff) or reused.
     sh=$(jq -r '.result.process_info.foreground_processes[0].argv[0] // "" | split("/") | last | ltrimstr("-")' <<<"$info")

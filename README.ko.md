@@ -9,7 +9,7 @@ Herdr는 워크스페이스, 탭, 페인, cwd, 그리고 지원하는 에이전�
 ## 설치
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.5
+herdr plugin install devicki/herdr-respawn --ref v0.3.0
 ```
 
 `--ref`는 설치할 릴리스를 고정해요. 빼면 `main` 브랜치의 최신 코드가 설치돼요. 릴리스 목록은 [tags](https://github.com/devicki/herdr-respawn/tags)에서 볼 수 있어요.
@@ -20,7 +20,7 @@ Herdr 서버를 쓰는 계정마다 설치하세요. 서버마다 스냅샷을 �
 
 ## 동작 방식
 
-- **저장**: `pane.focused`, `tab.focused`, `workspace.focused`, `pane.closed`, `pane.agent_status_changed` 이벤트가 발생할 때마다 각 페인의 포그라운드 명령(argv)과 cwd를 확인해요. 허용 목록에 있는 명령이면 플러그인 상태 폴더에 저장해요. 바로 저장하고 싶으면 `respawn: save now` 액션을 실행하세요.
+- **저장**: `pane.focused`, `tab.focused`, `workspace.focused`, `pane.closed`, `pane.agent_status_changed` 이벤트가 발생할 때마다 각 페인의 포그라운드 명령(argv)과 cwd를 확인해요. 허용 목록에 있는 명령이면 플러그인 상태 폴더에 저장해요. 에이전트는 세션 id와 함께 저장해요([에이전트 실행 인자 유지](#에이전트-실행-인자-유지) 참고). 바로 저장하고 싶으면 `respawn: save now` 액션을 실행하세요.
 - **복원**: Herdr가 세션 복원을 마치면 시작 훅이 실행돼요. 저장해 둔 명령을 `herdr pane run`으로 원래 페인에 다시 입력하고, 뒤에 있는 탭이나 워크스페이스의 페인도 포함돼요. 단, 그 페인이 빈 셸 프롬프트로 돌아왔을 때만 입력해요. 라이브 핸드오프처럼 이미 뭔가 실행 중인 페인은 건드리지 않아요.
   - 명령 앞에 공백을 붙여 셸 히스토리에 남지 않게 해요(bash는 `HISTCONTROL=ignorespace`/`ignoreboth`, zsh는 `setopt HIST_IGNORE_SPACE`).
   - 페인의 셸이 저장된 폴더에 있지 않으면 `cd <폴더> &&`를 앞에 붙여요. 그 폴더가 없어졌다면 명령은 실행되지 않아요.
@@ -44,6 +44,30 @@ npm
 # top은 다시 실행하지 않기
 !top
 ```
+
+## 에이전트 실행 인자 유지
+
+Herdr는 Claude Code, Codex, Devin 같은 에이전트를 스스로 다시 열지만, 항상 `claude --resume <id>`처럼 인자 없이 열어요. 그래서 처음 실행할 때 준 인자가 사라져요. 예를 들어 `claude-yolo` 같은 alias로 `claude --dangerously-skip-permissions`를 실행했던 세션은 다시 열리면 권한 확인을 다시 요청해요. Claude Code가 resume할 때 bypass 모드를 일부러 복원하지 않기 때문이에요.
+
+인자를 유지하려면 `config.toml`에서 Herdr의 에이전트 복원을 끄세요.
+
+```toml
+[session]
+resume_agents_on_restore = false
+```
+
+그러면 respawn이 Herdr가 기록한 세션 id와 아래 실행 인자로 Claude Code, Codex, Devin을 직접 다시 열어요.
+
+| 에이전트 | 다시 여는 명령 | 유지하는 인자 |
+| --- | --- | --- |
+| Claude Code | `claude <인자> --resume <id>` | `--dangerously-skip-permissions`, `--allow-dangerously-skip-permissions`, `--permission-mode`, `--model` |
+| Codex | `codex resume <인자> <id>` | `--dangerously-bypass-approvals-and-sandbox`, `-s`/`--sandbox`, `-a`/`--ask-for-approval`, `-m`/`--model` |
+| Devin | `devin <인자> --resume <id>` | `--permission-mode`, `--model` |
+
+그 밖의 인자와 프롬프트는 빼고 열어요. Herdr의 에이전트 복원이 켜져 있으면(기본값) respawn은 에이전트를 건드리지 않아요. 둘이 같은 페인에 동시에 입력하게 되기 때문이에요.
+
+- 복원을 끄면 이 세 가지 외의 에이전트는 빈 셸로 돌아와요. 다른 에이전트도 쓴다면 켜 두세요.
+- 에이전트가 자기 이름(`claude`, `codex`, `devin`)으로 실행돼야 해요. `npx` 같은 래퍼로 실행한 경우는 인식하지 못해요.
 
 ## 한계
 
@@ -73,7 +97,7 @@ pane_history = true
 Herdr에는 업데이트 명령이 없어서, 새 태그로 다시 설치하면 돼요. 다시 설치해도 허용 목록, 저장된 스냅샷, 켜짐/꺼짐 상태는 그대로 남아요. 설치된 버전은 `herdr plugin list`로 확인할 수 있어요.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.5 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.3.0 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -84,7 +108,7 @@ herdr plugin link .
 ./test.sh   # 클라이언트로 띄운 격리된 Herdr에서 재부팅처럼 SIGTERM을 보내고 재실행을 확인해요
 ```
 
-`test.sh`는 포커스된 페인, 뒤에 있는 탭, 뒤에 있는 워크스페이스에서 TUI를 실행하고, 허용 목록에 없는 명령도 하나 함께 띄워요. `tmux`, `htop`, `vim`이 필요하고, 테스트 서버를 `/proc`으로 찾기 때문에 Linux에서만 돌아가요. 사용 중인 Herdr 세션은 건드리지 않아요.
+`test.sh`는 포커스된 페인, 뒤에 있는 탭, 뒤에 있는 워크스페이스에서 TUI를 실행하고, 허용 목록에 없는 명령과 인자를 유지한 채 돌아와야 하는 가짜 `claude --dangerously-skip-permissions`도 함께 띄워요. `tmux`, `htop`, `vim`, `python3`가 필요하고, 테스트 서버를 `/proc`으로 찾기 때문에 Linux에서만 돌아가요. 사용 중인 Herdr 세션은 건드리지 않아요.
 
 릴리스할 때는 `herdr-plugin.toml`의 `version`을 올리고, 두 README의 `--ref`를 바꿔 커밋한 뒤 `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`를 실행하세요.
 
