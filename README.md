@@ -9,12 +9,14 @@ Herdr already restores workspaces, tabs, panes, cwd and supported agent sessions
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.3
+herdr plugin install devicki/herdr-respawn --ref v0.2.4
 ```
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
 
-Requires `bash` and `jq`. Install it in every account that runs a Herdr server; each server keeps its own snapshot.
+Install it in every account that runs a Herdr server; each server keeps its own snapshot.
+
+**Compatibility**: Linux and macOS. It needs `bash` (3.2, the macOS default, is enough) and `jq` (`brew install jq` on macOS). Windows is not supported; run Herdr in WSL there.
 
 ## How it works
 
@@ -71,7 +73,7 @@ pane_history = true
 Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.3 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.2.4 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -82,7 +84,7 @@ herdr plugin link .
 ./test.sh   # isolated Herdr started by its client; reboot-like SIGTERM; expect the relaunch
 ```
 
-`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist. It needs `tmux`, `htop` and `vim`, and never touches your own Herdr session.
+`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist. It needs `tmux`, `htop` and `vim`, runs on Linux only (it finds its server through `/proc`), and never touches your own Herdr session.
 
 To release, bump `version` in `herdr-plugin.toml`, update the `--ref` in both READMEs, commit, then `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
 

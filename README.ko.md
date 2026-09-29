@@ -9,12 +9,14 @@ Herdr는 워크스페이스, 탭, 페인, cwd, 그리고 지원하는 에이전�
 ## 설치
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.3
+herdr plugin install devicki/herdr-respawn --ref v0.2.4
 ```
 
 `--ref`는 설치할 릴리스를 고정해요. 빼면 `main` 브랜치의 최신 코드가 설치돼요. 릴리스 목록은 [tags](https://github.com/devicki/herdr-respawn/tags)에서 볼 수 있어요.
 
-`bash`와 `jq`가 필요해요. Herdr 서버를 쓰는 계정마다 설치하세요. 서버마다 스냅샷을 따로 저장해요.
+Herdr 서버를 쓰는 계정마다 설치하세요. 서버마다 스냅샷을 따로 저장해요.
+
+**호환성**: Linux와 macOS에서 동작해요. `bash`(macOS 기본인 3.2로 충분해요)와 `jq`(macOS는 `brew install jq`)가 필요해요. Windows는 지원하지 않으니 WSL에서 Herdr를 실행하세요.
 
 ## 동작 방식
 
@@ -71,7 +73,7 @@ pane_history = true
 Herdr에는 업데이트 명령이 없어서, 새 태그로 다시 설치하면 돼요. 다시 설치해도 허용 목록, 저장된 스냅샷, 켜짐/꺼짐 상태는 그대로 남아요. 설치된 버전은 `herdr plugin list`로 확인할 수 있어요.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.3 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.2.4 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -82,7 +84,7 @@ herdr plugin link .
 ./test.sh   # 클라이언트로 띄운 격리된 Herdr에서 재부팅처럼 SIGTERM을 보내고 재실행을 확인해요
 ```
 
-`test.sh`는 포커스된 페인, 뒤에 있는 탭, 뒤에 있는 워크스페이스에서 TUI를 실행하고, 허용 목록에 없는 명령도 하나 함께 띄워요. `tmux`, `htop`, `vim`이 필요하고, 사용 중인 Herdr 세션은 건드리지 않아요.
+`test.sh`는 포커스된 페인, 뒤에 있는 탭, 뒤에 있는 워크스페이스에서 TUI를 실행하고, 허용 목록에 없는 명령도 하나 함께 띄워요. `tmux`, `htop`, `vim`이 필요하고, 테스트 서버를 `/proc`으로 찾기 때문에 Linux에서만 돌아가요. 사용 중인 Herdr 세션은 건드리지 않아요.
 
 릴리스할 때는 `herdr-plugin.toml`의 `version`을 올리고, 두 README의 `--ref`를 바꿔 커밋한 뒤 `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`를 실행하세요.
 

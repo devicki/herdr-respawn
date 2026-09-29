@@ -27,11 +27,14 @@ extra="${HERDR_PLUGIN_CONFIG_DIR:-}/allowlist"
 if [ -n "${HERDR_PLUGIN_CONFIG_DIR:-}" ] && [ ! -e "$extra" ]; then
   cat 2>/dev/null >"$extra" <<EOF || :
 # herdr-respawn allowlist: which pane commands come back after a Herdr restart or reboot.
-# One name per line, matched against the program's file name. Lines starting with # are ignored.
-#   name    relaunch this command as well
-#   !name   never relaunch it, even if it is built in
 #
-# Built in: $defaults
+# These are relaunched already; you don't need to list them:
+#   $defaults
+#
+# This file only changes that list. Leave it as is to keep the defaults.
+# One name per line, matched against the program's file name; lines starting with # are ignored.
+#   name    relaunch this command as well
+#   !name   never relaunch it, even though it is listed above
 #
 # Examples:
 # npm
@@ -79,12 +82,13 @@ restore() {
     info=$("$H" pane process-info --pane "$p" 2>/dev/null) || continue
     # Only type into a pane that came back as a bare shell; anything else is live (handoff) or reused.
     sh=$(jq -r '.result.process_info.foreground_processes[0].argv[0] // "" | split("/") | last | ltrimstr("-")' <<<"$info")
-    case "$sh" in bash | zsh | fish | sh | dash | ksh) ;; *) continue ;; esac
+    # The leading ( on each pattern keeps bash 3.2, macOS's /bin/bash, parsing a case inside $( ).
+    case "$sh" in (bash | zsh | fish | sh | dash | ksh) ;; (*) continue ;; esac
     # A saved absolute path may be gone after a reboot (tmp mounts, Nix, AppImage); let the shell's PATH find it by name.
     a0=$(jq -r '.argv[0]' <<<"$e")
     case "$a0" in
-    /tmp/* | /private/tmp/* | /var/folders/* | /private/var/folders/* | /nix/store/*) a0=${a0##*/} ;;
-    /*) [ -x "$a0" ] || a0=${a0##*/} ;;
+    (/tmp/* | /private/tmp/* | /var/folders/* | /private/var/folders/* | /nix/store/*) a0=${a0##*/} ;;
+    (/*) [ -x "$a0" ] || a0=${a0##*/} ;;
     esac
     cur=$(jq -r '.result.process_info.foreground_processes[0].cwd // ""' <<<"$info")
     # The leading space keeps the command out of shell history (bash ignorespace, zsh HIST_IGNORE_SPACE).
