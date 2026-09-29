@@ -9,7 +9,7 @@ Herdr는 워크스페이스, 탭, 페인, cwd, 그리고 지원하는 에이전�
 ## 설치
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.2
+herdr plugin install devicki/herdr-respawn --ref v0.2.3
 ```
 
 `--ref`는 설치할 릴리스를 고정해요. 빼면 `main` 브랜치의 최신 코드가 설치돼요. 릴리스 목록은 [tags](https://github.com/devicki/herdr-respawn/tags)에서 볼 수 있어요.
@@ -34,7 +34,7 @@ herdr plugin install devicki/herdr-respawn --ref v0.2.2
 lazygit lazydocker tig gitui vim nvim vi hx micro nano emacs htop btop top yazi ranger lf nnn k9s
 ```
 
-목록은 `$(herdr plugin config-dir devicki.respawn)/allowlist`에서 바꿀 수 있어요. 한 줄에 이름 하나씩 쓰면 추가되고, `!이름`으로 쓰면 목록에서 빠져요. 이름은 프로그램 파일 이름과 비교해요.
+목록은 `$(herdr plugin config-dir devicki.respawn)/allowlist`(보통 `~/.config/herdr/plugins/config/devicki.respawn/allowlist`)에서 바꿀 수 있어요. 플러그인이 처음 실행될 때 기본 목록과 작성법을 주석으로 적은 파일을 만들어 둬요. 한 줄에 이름 하나씩 쓰면 추가되고, `!이름`으로 쓰면 목록에서 빠져요. 이름은 프로그램 파일 이름과 비교해요.
 
 ```
 # 항상 다시 띄우고 싶은 개발 서버
@@ -71,7 +71,7 @@ pane_history = true
 Herdr에는 업데이트 명령이 없어서, 새 태그로 다시 설치하면 돼요. 다시 설치해도 허용 목록, 저장된 스냅샷, 켜짐/꺼짐 상태는 그대로 남아요. 설치된 버전은 `herdr plugin list`로 확인할 수 있어요.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.2 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.2.3 --yes
 herdr plugin uninstall devicki.respawn
 ```
 

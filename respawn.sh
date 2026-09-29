@@ -21,10 +21,26 @@ fi
 
 # Only these are relaunched: a TUI is safe to rerun, an arbitrary command (git push, a migration) is not.
 # $HERDR_PLUGIN_CONFIG_DIR/allowlist adds names, one per line; `!name` removes one.
+defaults="lazygit lazydocker tig gitui vim nvim vi hx micro nano emacs htop btop top yazi ranger lf nnn k9s"
 extra="${HERDR_PLUGIN_CONFIG_DIR:-}/allowlist"
+# Leave a commented-out example on first run, so the file is there to find and edit.
+if [ -n "${HERDR_PLUGIN_CONFIG_DIR:-}" ] && [ ! -e "$extra" ]; then
+  cat 2>/dev/null >"$extra" <<EOF || :
+# herdr-respawn allowlist: which pane commands come back after a Herdr restart or reboot.
+# One name per line, matched against the program's file name. Lines starting with # are ignored.
+#   name    relaunch this command as well
+#   !name   never relaunch it, even if it is built in
+#
+# Built in: $defaults
+#
+# Examples:
+# npm
+# !top
+EOF
+fi
 allow_json=$(
   {
-    echo "lazygit lazydocker tig gitui vim nvim vi hx micro nano emacs htop btop top yazi ranger lf nnn k9s"
+    echo "$defaults"
     [ ! -f "$extra" ] || sed 's/#.*//' "$extra"
   } | tr -s '[:space:]' '\n' | jq -R . |
     jq -sc 'map(select(length > 0)) | map(select(startswith("!") | not)) - map(select(startswith("!")) | ltrimstr("!"))'

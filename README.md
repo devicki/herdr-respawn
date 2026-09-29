@@ -9,7 +9,7 @@ Herdr already restores workspaces, tabs, panes, cwd and supported agent sessions
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.2
+herdr plugin install devicki/herdr-respawn --ref v0.2.3
 ```
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
@@ -34,7 +34,7 @@ Only these commands are relaunched, since rerunning an arbitrary command (`git p
 lazygit lazydocker tig gitui vim nvim vi hx micro nano emacs htop btop top yazi ranger lf nnn k9s
 ```
 
-Customize the list in `$(herdr plugin config-dir devicki.respawn)/allowlist`. Put one name per line: a plain name adds a command, `!name` removes one. Names are matched against the program's basename.
+Customize the list in `$(herdr plugin config-dir devicki.respawn)/allowlist`, for example `~/.config/herdr/plugins/config/devicki.respawn/allowlist`. The plugin creates it the first time it runs, with the built-in list and the syntax in comments. Put one name per line: a plain name adds a command, `!name` removes one. Names are matched against the program's basename.
 
 ```
 # dev servers I always want back
@@ -71,7 +71,7 @@ pane_history = true
 Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.2.2 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.2.3 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
