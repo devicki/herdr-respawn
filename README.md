@@ -7,8 +7,10 @@ Herdr already restores workspaces, tabs, panes, cwd and supported agent sessions
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn
+herdr plugin install devicki/herdr-respawn --ref v0.2.1
 ```
+
+`--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
 
 Requires `bash` and `jq`.
 
@@ -62,12 +64,23 @@ To also restore each pane's recent screen output, turn on Herdr's own history re
 pane_history = true
 ```
 
+## Update and uninstall
+
+Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
+
+```sh
+herdr plugin install devicki/herdr-respawn --ref v0.2.1 --yes
+herdr plugin uninstall devicki.respawn
+```
+
 ## Development
 
 ```sh
 herdr plugin link .
 ./test.sh   # throwaway named session: save, restart, expect the relaunch
 ```
+
+To release, bump `version` in `herdr-plugin.toml`, update the `--ref` in this README, commit, then `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
 
 ## License
 
