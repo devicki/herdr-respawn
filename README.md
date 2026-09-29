@@ -9,7 +9,7 @@ Herdr already restores workspaces, tabs, panes, cwd and supported agent sessions
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.3.0
+herdr plugin install devicki/herdr-respawn --ref v0.3.1
 ```
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
@@ -68,6 +68,7 @@ Other flags and any prompt are dropped. With Herdr's agent resume on (the defaul
 
 - With it off, agents other than these three come back as plain shells. Keep it on if you use them.
 - The agent has to run under its own name (`claude`, `codex`, `devin`); one started through a wrapper such as `npx` is not recognized.
+- Claude Code's agent view (`claude agents`) manages background sessions and has no session of its own, so it is relaunched exactly as it was started, flags included. This works with Herdr's agent resume on as well.
 
 ## Limitations
 
@@ -97,7 +98,7 @@ pane_history = true
 Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.3.0 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.3.1 --yes
 herdr plugin uninstall devicki.respawn
 ```
 

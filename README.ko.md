@@ -9,7 +9,7 @@ Herdr는 워크스페이스, 탭, 페인, cwd, 그리고 지원하는 에이전�
 ## 설치
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.3.0
+herdr plugin install devicki/herdr-respawn --ref v0.3.1
 ```
 
 `--ref`는 설치할 릴리스를 고정해요. 빼면 `main` 브랜치의 최신 코드가 설치돼요. 릴리스 목록은 [tags](https://github.com/devicki/herdr-respawn/tags)에서 볼 수 있어요.
@@ -68,6 +68,7 @@ resume_agents_on_restore = false
 
 - 복원을 끄면 이 세 가지 외의 에이전트는 빈 셸로 돌아와요. 다른 에이전트도 쓴다면 켜 두세요.
 - 에이전트가 자기 이름(`claude`, `codex`, `devin`)으로 실행돼야 해요. `npx` 같은 래퍼로 실행한 경우는 인식하지 못해요.
+- Claude Code의 agent view(`claude agents`)는 백그라운드 세션을 관리하는 화면이라 다시 열 세션이 없어요. 그래서 실행했던 인자 그대로 다시 실행해요. Herdr의 에이전트 복원이 켜져 있어도 동작해요.
 
 ## 한계
 
@@ -97,7 +98,7 @@ pane_history = true
 Herdr에는 업데이트 명령이 없어서, 새 태그로 다시 설치하면 돼요. 다시 설치해도 허용 목록, 저장된 스냅샷, 켜짐/꺼짐 상태는 그대로 남아요. 설치된 버전은 `herdr plugin list`로 확인할 수 있어요.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.3.0 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.3.1 --yes
 herdr plugin uninstall devicki.respawn
 ```
 

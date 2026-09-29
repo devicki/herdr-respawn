@@ -54,12 +54,14 @@ p2=$(h tab create --workspace "${p1%%:*}" --cwd "$work/proj" --no-focus | jq -r 
 p3=$(h workspace create --cwd "$work/proj" --no-focus | jq -r .result.root_pane.pane_id)
 p4=$(h pane split "$p3" --direction right --no-focus | jq -r .result.pane.pane_id)
 p5=$(h tab create --workspace "${p1%%:*}" --cwd "$work/proj" --no-focus | jq -r .result.root_pane.pane_id)
+p6=$(h pane split "$p5" --direction right --no-focus | jq -r .result.pane.pane_id)
 h pane run "$p1" " cd '$work/proj' && htop" >/dev/null
 h pane run "$p2" ' top' >/dev/null
 h pane run "$p3" ' vim notes.txt' >/dev/null
 h pane run "$p4" ' sleep 999' >/dev/null
 h pane run "$p5" ' claude --dangerously-skip-permissions -c' >/dev/null
 h pane report-agent-session "$p5" --source herdr:claude --agent claude --agent-session-id abc123 >/dev/null
+h pane run "$p6" ' claude --dangerously-skip-permissions agents' >/dev/null # agent view: no session
 sleep 1.5
 h plugin action invoke devicki.respawn.save >/dev/null
 sleep 1
@@ -86,6 +88,10 @@ case "$(fg_of "$p4")" in *sleep*) echo "FAIL: $p4 relaunched sleep, which is off
 case "$(fg_of "$p5")" in
 (claude*" --dangerously-skip-permissions --resume abc123") ;;
 (*) echo "FAIL: $p5 runs '$(fg_of "$p5")', want the agent resumed with its flag" >&2; fail=1 ;;
+esac
+case "$(fg_of "$p6")" in
+(claude*" --dangerously-skip-permissions agents") ;;
+(*) echo "FAIL: $p6 runs '$(fg_of "$p6")', want Claude's agent view back" >&2; fail=1 ;;
 esac
 [ "$fail" -eq 0 ] && echo PASS
 exit "$fail"

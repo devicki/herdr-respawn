@@ -76,7 +76,12 @@ pick='
   | [$i.foreground_processes[] | select(.pid == $i.foreground_process_group_id)] as $lead
   | (if ($lead | length) > 0 then $lead else $i.foreground_processes end) as $procs
   | $sessions[$p] as $s
-  | if $s and (agents | has($s.agent)) and any($procs[]; name == $s.agent) then
+  | if any($procs[]; name == "claude" and any(.argv[1:][]; . == "agents")) then
+      # Claude Code'"'"'s agent view (`claude agents`) manages background sessions: it has no
+      # session of its own to resume, and starting it again is safe, so it comes back as it
+      # was started, flags included. Marked as an agent when Herdr tracks one there too.
+      first($procs[] | select(name == "claude")) | {pane: $p, argv, cwd} + (if $s then {agent: $s.agent} else {} end)
+    elif $s and (agents | has($s.agent)) and any($procs[]; name == $s.agent) then
       agents[$s.agent] as $a
       | first($procs[] | select(name == $s.agent))
       | {pane: $p, cwd, agent: $s.agent,
