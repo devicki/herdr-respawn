@@ -1,0 +1,16 @@
+onboarding = false
+
+[update]
+version_check = false
+manifest_check = false
+
+[ui.sound]
+enabled = false
+
+# Toasts are off by default; this shows respawn's "N pane(s) restored" inside Herdr.
+[ui.toast]
+delivery = "herdr"
+
+# The one line respawn asks for: agents come back with their launch flags.
+[session]
+resume_agents_on_restore = false

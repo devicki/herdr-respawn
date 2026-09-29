@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Stand-in Claude Code for the demo recording. It reports its session to Herdr the way the real
+# integration does, shows its permission mode and whether it was resumed, and then waits as a
+# process named claude with its flags intact, which is what respawn reads.
+herdr pane report-agent-session "$HERDR_PANE_ID" --source herdr:claude --agent claude --agent-session-id 3f2c9a >/dev/null 2>&1
+herdr pane report-agent "$HERDR_PANE_ID" --source herdr:claude --agent claude --state idle >/dev/null 2>&1
+clear
+printf '\e[1;38;5;173m✻ claude\e[0m \e[2m· shop-api\e[0m\n'
+case " $* " in
+*" --dangerously-skip-permissions "*) printf '\e[1;31m⏵⏵ bypass permissions on\e[0m\n' ;;
+*) printf '\e[2m? for shortcuts\e[0m\n' ;;
+esac
+echo
+case " $* " in *" --resume "*) printf '\e[36m↻ resumed session 3f2c9a\e[0m\n\n' ;; esac
+printf '\e[2m> add refresh-token rotation\e[0m\n\n'
+printf '\e[32m●\e[0m Updated src/auth/refresh.ts \e[2m(+6 -1)\e[0m\n'
+printf '\e[32m●\e[0m Rotation is in. The diff is open\n  on the right.\n\n'
+printf '\e[1m❯\e[0m '
+exec -a claude python3 -c 'import time; time.sleep(1e9)' "$@"

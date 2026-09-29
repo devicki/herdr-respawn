@@ -2,9 +2,18 @@
 
 English | [한국어](README.ko.md)
 
-Bring back lazygit, editors and other TUIs in their panes after a [Herdr](https://herdr.dev) server restart or machine reboot.
+![herdr-respawn: a restart takes every pane process down, and respawn brings them back](docs/demo.svg)
 
-Herdr already restores workspaces, tabs, panes, cwd and supported agent sessions (Claude Code, Codex, ...) on its own. Every other pane comes back as a bare shell. This plugin relaunches the allowlisted command that was running in each pane, automatically, as soon as the server is back.
+Keep working where you left off after a [Herdr](https://herdr.dev) server restart or a machine reboot.
+
+Herdr restores workspaces, tabs, panes and cwd on its own, and resumes supported agents without their launch flags. Every other pane comes back as a bare shell. respawn brings back what was running in them, as soon as the server is back and without a keystroke:
+
+- **TUIs** you had open: lazygit, vim, htop, yazi and the rest of the [allowlist](#allowlist)
+- **Plugin panes**, such as a [reviewr](https://github.com/persiyanov/herdr-reviewr) diff beside an agent
+- **Claude Code's agent view** (`claude agents`)
+- With one line of config, **agents with their launch flags**: a `claude --dangerously-skip-permissions` session comes back still bypassing permissions ([details](#agents-keep-their-launch-flags))
+
+There is nothing to set up for the first three. Install it, and it starts saving right away.
 
 ## Install
 
@@ -14,19 +23,27 @@ herdr plugin install devicki/herdr-respawn --ref v0.4.0
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
 
-Install it in every account that runs a Herdr server; each server keeps its own snapshot.
+Install it in every account that runs a Herdr server. Each server, and each named session, keeps its own snapshot. The first restore happens at the next restart after the plugin has saved once, which it does as soon as you move focus.
 
 **Compatibility**: Linux and macOS. It needs `bash` (3.2, the macOS default, is enough) and `jq` (`brew install jq` on macOS). Windows is not supported; run Herdr in WSL there.
 
 ## How it works
 
-- **Save**: on every `pane.focused`, `tab.focused`, `workspace.focused`, `pane.closed` and `pane.agent_status_changed` event, each pane's foreground command (argv) and cwd are written to the plugin state dir if the command is on the allowlist. Agents are saved with their session id; see [Agents keep their launch flags](#agents-keep-their-launch-flags). Plugin panes are saved as their plugin; see [Plugin panes](#plugin-panes). Run the `respawn: save now` action to save on demand.
+- **Save**: on every `pane.focused`, `tab.focused`, `workspace.focused`, `pane.closed` and `pane.agent_status_changed` event, each pane's foreground command (argv) and cwd are written to the plugin state dir if the command is on the allowlist. Agents are saved with their session id ([details](#agents-keep-their-launch-flags)) and plugin panes as their plugin ([details](#plugin-panes)). Run the `respawn: save now` action to save on demand.
 - **Restore**: the startup hook runs once Herdr has restored the session. It types each saved command back into its pane with `herdr pane run`, in background tabs and workspaces too, but only when that pane is back at a bare shell prompt. A pane that is still running something, for example after a live handoff, is left alone.
   - The command gets a leading space so it stays out of shell history (bash `HISTCONTROL=ignorespace`/`ignoreboth`, zsh `setopt HIST_IGNORE_SPACE`).
   - It is prefixed with `cd <dir> &&` when the pane's shell is not already in the saved directory. If that directory no longer exists, the command does not run.
   - An absolute program path that is gone after the reboot (or lives under a temp dir or `/nix/store`) is replaced by the program name, so the shell's `PATH` finds it.
-  - A toast summarizes what was restored. Herdr only shows it if a client is attached when the server starts.
 - A corrupt snapshot is moved aside to `<file>.bad` and saving starts fresh. Snapshots of named sessions deleted since are removed at startup.
+
+### Restore notification
+
+respawn posts a toast such as `respawn: 4 pane(s) restored` with the names of what came back. Herdr's toasts are off by default, and Herdr shows one only to a client that is attached when the server starts. To see it:
+
+```toml
+[ui.toast]
+delivery = "herdr"      # or "terminal" / "system" for a desktop notification
+```
 
 ## Allowlist
 
@@ -78,6 +95,24 @@ Herdr brings plugin panes, such as a [reviewr](https://github.com/persiyanov/her
 - A plugin that has since been disabled or uninstalled is skipped.
 - The allowlist does not apply to plugin panes.
 
+## Check what is saved
+
+The snapshot is a JSON file per server or named session in the plugin state dir:
+
+```sh
+herdr plugin action invoke devicki.respawn.save; sleep 1
+jq -r '.panes[] | "\(.pane) \(.plugin // .agent // "-") \(.entrypoint // (.argv | join(" ")))"' \
+  ~/.local/state/herdr/plugins/devicki.respawn/*.json
+```
+
+```
+w1:p1 claude claude --dangerously-skip-permissions --resume 3f2c9a
+w1:p2 persiyanov.reviewr pane
+w1:p3 - lazygit
+```
+
+`herdr plugin log list --plugin devicki.respawn` shows each save and restore run, including what the last restore brought back.
+
 ## Limitations
 
 - Environment variables are not restored (virtualenvs, `NVIM_APPNAME` set by an alias, ...).
@@ -110,6 +145,8 @@ herdr plugin install devicki/herdr-respawn --ref v0.4.0 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
+Uninstalling leaves the allowlist in `~/.config/herdr/plugins/config/devicki.respawn` and the snapshots in `~/.local/state/herdr/plugins/devicki.respawn`; delete them if you do not reinstall.
+
 ## Development
 
 ```sh
@@ -118,6 +155,8 @@ herdr plugin link .
 ```
 
 `test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist, a stand-in `claude --dangerously-skip-permissions` that must come back with its flag, Claude's agent view, and a stand-in plugin pane opened on the second of two entrypoints that share one command. It needs `tmux`, `htop`, `vim` and `python3`, runs on Linux only (it finds its server through `/proc`), and never touches your own Herdr session.
+
+`docs/demo/record.sh` re-records `docs/demo.svg` in an isolated Herdr with a made-up project (needs `tmux`, `lazygit` and network access for reviewr).
 
 To release, bump `version` in `herdr-plugin.toml`, update the `--ref` in both READMEs, commit, then `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
 
