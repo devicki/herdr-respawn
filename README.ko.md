@@ -18,20 +18,20 @@ Herdr는 워크스페이스, 탭, 페인, cwd를 스스로 복원하고, 지원�
 ## 설치
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.4.0
+herdr plugin install devicki/herdr-respawn --ref v0.4.1
 ```
 
 `--ref`는 설치할 릴리스를 고정해요. 빼면 `main` 브랜치의 최신 코드가 설치돼요. 릴리스 목록은 [tags](https://github.com/devicki/herdr-respawn/tags)에서 볼 수 있어요.
 
 Herdr 서버를 쓰는 계정마다 설치하세요. 서버마다, 그리고 네임드 세션마다 스냅샷을 따로 저장해요. 첫 복원은 플러그인이 한 번 저장한 뒤의 다음 재시작 때 일어나요. 저장은 페인 포커스를 옮기는 순간 바로 돼요.
 
-**호환성**: Linux와 macOS에서 동작해요. `bash`(macOS 기본인 3.2로 충분해요)와 `jq`(macOS는 `brew install jq`)가 필요해요. Windows는 지원하지 않으니 WSL에서 Herdr를 실행하세요.
+**호환성**: Linux와 macOS에서 동작해요. `bash`(macOS 기본인 3.2로 충분해요)와 `jq` 1.6 이상(macOS는 `brew install jq`)이 필요해요. Windows는 지원하지 않으니 WSL에서 Herdr를 실행하세요.
 
 ## 동작 방식
 
 - **저장**: `pane.focused`, `tab.focused`, `workspace.focused`, `pane.closed`, `pane.agent_status_changed` 이벤트가 발생할 때마다 각 페인의 포그라운드 명령(argv)과 cwd를 확인해요. 허용 목록에 있는 명령이면 플러그인 상태 폴더에 저장해요. 에이전트는 세션 id와 함께([자세히](#에이전트-실행-인자-유지)), 플러그인 페인은 어떤 플러그인인지로([자세히](#플러그인-페인)) 저장해요. 바로 저장하고 싶으면 `respawn: save now` 액션을 실행하세요.
-- **복원**: Herdr가 세션 복원을 마치면 시작 훅이 실행돼요. 저장해 둔 명령을 `herdr pane run`으로 원래 페인에 다시 입력하고, 뒤에 있는 탭이나 워크스페이스의 페인도 포함돼요. 단, 그 페인이 빈 셸 프롬프트로 돌아왔을 때만 입력해요. 라이브 핸드오프처럼 이미 뭔가 실행 중인 페인은 건드리지 않아요.
-  - 명령 앞에 공백을 붙여 셸 히스토리에 남지 않게 해요(bash는 `HISTCONTROL=ignorespace`/`ignoreboth`, zsh는 `setopt HIST_IGNORE_SPACE`).
+- **복원**: Herdr가 세션 복원을 마치면 시작 훅이 실행돼요. 저장해 둔 명령을 `herdr pane run`으로 원래 페인에 다시 입력하고, 뒤에 있는 탭이나 워크스페이스의 페인도 포함돼요. 단, 그 페인이 빈 셸 프롬프트로 돌아왔을 때만(앞에서 대화형 셸 하나만 돌고 있을 때만) 입력해요. 스크립트, `sh -c` 작업, 라이브 핸드오프처럼 이미 뭔가 실행 중인 페인은 건드리지 않아요.
+  - 명령 앞에 공백을 붙여 셸 히스토리에 남지 않게 해요(fish는 기본으로, bash는 `HISTCONTROL=ignorespace`/`ignoreboth`, zsh는 `setopt HIST_IGNORE_SPACE`일 때).
   - 페인의 셸이 저장된 폴더에 있지 않으면 `cd <폴더> &&`를 앞에 붙여요. 그 폴더가 없어졌다면 명령은 실행되지 않아요.
   - 재부팅 후 사라진 절대 경로의 프로그램(임시 폴더나 `/nix/store` 아래 경로 포함)은 프로그램 이름으로 바꿔서, 셸의 `PATH`에서 찾게 해요.
 - 스냅샷 파일이 깨졌으면 `<파일>.bad`로 옮기고 새로 저장을 시작해요. 삭제된 네임드 세션의 스냅샷은 시작할 때 정리해요.
@@ -91,6 +91,7 @@ resume_agents_on_restore = false
 
 Herdr는 에이전트 옆에 띄운 [reviewr](https://github.com/persiyanov/herdr-reviewr) diff나 memex 사이드바 같은 플러그인 페인도 빈 셸로 되돌려요. respawn은 명령이 플러그인 폴더 안에 있는 것으로 이런 페인을 알아보고, 그 페인에 해당하는 플러그인의 현재 명령을 Herdr가 플러그인 페인에 주는 환경 변수와 함께 다시 실행해요. 그래서 종료하면 전처럼 페인도 닫혀요.
 
+- 화면(entrypoint)의 명령은 플러그인 폴더 안의 프로그램이나 스크립트여야 해요(직접 실행하거나 `bash script.sh`처럼 인터프리터로 실행). `exec` 없이 `sh -c '...'` 같은 래퍼 안에 머무는 명령은 알아보지 못해요.
 - 페인을 열었던 화면(entrypoint)을 그대로 써요. 한 플러그인에 명령이 같은 화면이 여러 개 있으면(memex의 desk, palette, sidebar) 프로세스 환경 변수에서 읽어요.
 - 그사이 꺼지거나 삭제된 플러그인은 건너뛰어요.
 - 허용 목록은 플러그인 페인에는 적용되지 않아요.
@@ -141,7 +142,7 @@ pane_history = true
 Herdr에는 업데이트 명령이 없어서, 새 태그로 다시 설치하면 돼요. 다시 설치해도 허용 목록, 저장된 스냅샷, 켜짐/꺼짐 상태는 그대로 남아요. 설치된 버전은 `herdr plugin list`로 확인할 수 있어요.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.4.0 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.4.1 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -154,7 +155,7 @@ herdr plugin link .
 ./test.sh   # 클라이언트로 띄운 격리된 Herdr에서 재부팅처럼 SIGTERM을 보내고 재실행을 확인해요
 ```
 
-`test.sh`는 포커스된 페인, 뒤에 있는 탭, 뒤에 있는 워크스페이스에서 TUI를 실행하고, 허용 목록에 없는 명령, 인자를 유지한 채 돌아와야 하는 가짜 `claude --dangerously-skip-permissions`, Claude의 agent view, 명령이 같은 두 화면 중 두 번째로 연 가짜 플러그인 페인도 함께 띄워요. `tmux`, `htop`, `vim`, `python3`가 필요하고, 테스트 서버를 `/proc`으로 찾기 때문에 Linux에서만 돌아가요. 사용 중인 Herdr 세션은 건드리지 않아요.
+`test.sh`는 포커스된 페인, 뒤에 있는 탭, 뒤에 있는 워크스페이스에서 TUI를 실행하고, 허용 목록에 없는 명령, 인자를 유지한 채 돌아와야 하는 가짜 `claude --dangerously-skip-permissions`, Claude의 agent view, 명령이 같은 두 화면 중 두 번째로 연 가짜 플러그인 페인도 함께 띄워요. `tmux`, `jq`, `htop`, `vim`, `python3`, procps(`top`, `pgrep`)가 필요하고, 테스트 서버를 `/proc`으로 찾기 때문에 Linux에서만 돌아가요. 사용 중인 Herdr 세션은 건드리지 않아요.
 
 `docs/demo/record.sh`는 가상의 프로젝트로 구성한 격리된 Herdr에서 `docs/demo.svg`를 다시 녹화해요(`tmux`, `lazygit`, reviewr 설치용 네트워크 필요).
 

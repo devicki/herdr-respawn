@@ -110,7 +110,37 @@ entrypoint_of() {
     sed -n 's/^HERDR_PLUGIN_ENTRYPOINT_ID=//p' | head -n1
 }
 
+# One writer at a time: a save from an event must not overwrite the snapshot while the startup
+# restore is still working through it. A lock left by a crash expires after 5 minutes.
+lockdir="$state.lock"
+take_lock() { # [seconds to wait]
+  local i=0
+  [ -z "$(find "$lockdir" -maxdepth 0 -mmin +5 2>/dev/null)" ] || rmdir "$lockdir" 2>/dev/null
+  while ! mkdir "$lockdir" 2>/dev/null; do
+    i=$((i + 1))
+    [ "$i" -le $((${1:-0} * 10)) ] || return 1
+    sleep 0.1
+  done
+}
+
+# A save that finds the lock taken is skipped: the next event saves again.
 save() {
+  take_lock || return 0
+  save_locked
+  local rc=$?
+  rmdir "$lockdir" 2>/dev/null
+  return "$rc"
+}
+
+restore() {
+  take_lock 30 || return 1
+  restore_locked
+  local rc=$?
+  rmdir "$lockdir" 2>/dev/null
+  return "$rc"
+}
+
+save_locked() {
   # A snapshot from an earlier server run is still waiting for restore; overwriting it now
   # would record the bare shells the restart left behind. A minute into the run the startup
   # restore is not coming (the plugin was disabled at startup), so saving takes over.
@@ -123,9 +153,9 @@ save() {
   sessions=$(jq -c '[.result.panes[] | select(.agent_session) | {key: .pane_id, value: .agent_session}] | from_entries' <<<"$panes") || return 1
   # Plugins with pane entrypoints, to recognise their panes by where the command lives.
   plugins=$("$H" plugin list --json 2>/dev/null |
-    jq -c '[.result.plugins[] | select((.panes // []) | length > 0) | {id: .plugin_id, root: .plugin_root, panes: [.panes[].id]}]') ||
-    plugins='[]'
-  tmp=$(mktemp "$state.XXXXXX") || return 1
+    jq -c '[.result.plugins[] | select((.panes // []) | length > 0) | {id: .plugin_id, root: .plugin_root, panes: [.panes[].id]}]')
+  [ -n "$plugins" ] || plugins='[]'
+  tmp=$(mktemp "$state.tmp.XXXXXX") || return 1
   for p in $(jq -r '.result.panes[].pane_id' <<<"$panes"); do
     e=$("$H" pane process-info --pane "$p" 2>/dev/null |
       jq -c --arg p "$p" --argjson allow "$allow_json" --argjson sessions "$sessions" --argjson plugins "$plugins" "$pick")
@@ -143,12 +173,16 @@ save() {
     mv "$tmp" "$state" || rm -f "$tmp"
 }
 
-restore() {
-  # Snapshots of named sessions deleted since (`herdr session delete` removes their directory).
+restore_locked() {
+  # Housekeeping: snapshots of named sessions deleted since (`herdr session delete` removes
+  # their directory), unreadable snapshots of any session, and temp files a crash left behind.
   for f in "$dir"/*.json; do
+    [ -f "$f" ] || continue
+    if ! jq -e .instance "$f" >/dev/null 2>&1; then mv -f "$f" "$f.bad"; continue; fi
     d=$(jq -r '.session_dir // empty' "$f" 2>/dev/null)
     [ -z "$d" ] || [ -d "$d" ] || rm -f "$f"
   done
+  find "$dir" -maxdepth 1 -name '*.tmp.*' -mmin +5 -exec rm -f {} + 2>/dev/null
   [ -f "$state" ] || return 0
   [ "$(jq -r .instance "$state")" != "$instance" ] || return 0
   # Herdr resumes agents itself unless `[session] resume_agents_on_restore = false`. Two
@@ -165,10 +199,12 @@ restore() {
     p=$(jq -r .pane <<<"$e")
     [ "$agents" = true ] || [ -z "$(jq -r '.agent // empty' <<<"$e")" ] || continue
     info=$("$H" pane process-info --pane "$p" 2>/dev/null) || continue
-    # Only type into a pane that came back as a bare shell; anything else is live (handoff) or reused.
-    sh=$(jq -r '.result.process_info.foreground_processes[0].argv[0] // "" | split("/") | last | ltrimstr("-")' <<<"$info")
-    # The leading ( on each pattern keeps bash 3.2, macOS's /bin/bash, parsing a case inside $( ).
-    case "$sh" in (bash | zsh | fish | sh | dash | ksh) ;; (*) continue ;; esac
+    # Only type into a pane that came back as a bare shell: the shell alone in the foreground,
+    # with options at most. `sh -c ...` or `bash script.sh` is running something, and text typed
+    # now would run when it ends. Anything else is live (handoff) or reused.
+    jq -e '.result.process_info.foreground_processes as $f | ($f | length) == 1
+      and ($f[0].argv[0] // "" | split("/") | last | ltrimstr("-") | IN("bash", "zsh", "fish", "sh", "dash", "ksh"))
+      and ($f[0].argv[1:] | all(startswith("-") and . != "-c"))' <<<"$info" >/dev/null || continue
     cur=$(jq -r '.result.process_info.foreground_processes[0].cwd // ""' <<<"$info")
     # The leading space keeps the command out of shell history (bash ignorespace, zsh HIST_IGNORE_SPACE).
     plug=$(jq -r '.plugin // empty' <<<"$e")
@@ -204,7 +240,7 @@ restore() {
       --body "$(cut -d' ' -f2 <<<"$restored" | sort | uniq -c | awk '{printf "%s%s", sep, $2 ($1 > 1 ? " x" $1 : ""); sep=", "}')" >/dev/null 2>&1 || :
   fi
   # Adopt the snapshot for this server run so saves resume.
-  tmp=$(mktemp "$state.XXXXXX") && jq --arg i "$instance" '.instance = $i' "$state" >"$tmp" && mv "$tmp" "$state"
+  tmp=$(mktemp "$state.tmp.XXXXXX") && jq --arg i "$instance" '.instance = $i' "$state" >"$tmp" && mv "$tmp" "$state"
 }
 
 case "${1:-}" in

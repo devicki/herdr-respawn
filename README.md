@@ -18,20 +18,20 @@ There is nothing to set up for the first three. Install it, and it starts saving
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.4.0
+herdr plugin install devicki/herdr-respawn --ref v0.4.1
 ```
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
 
 Install it in every account that runs a Herdr server. Each server, and each named session, keeps its own snapshot. The first restore happens at the next restart after the plugin has saved once, which it does as soon as you move focus.
 
-**Compatibility**: Linux and macOS. It needs `bash` (3.2, the macOS default, is enough) and `jq` (`brew install jq` on macOS). Windows is not supported; run Herdr in WSL there.
+**Compatibility**: Linux and macOS. It needs `bash` (3.2, the macOS default, is enough) and `jq` 1.6 or newer (`brew install jq` on macOS). Windows is not supported; run Herdr in WSL there.
 
 ## How it works
 
 - **Save**: on every `pane.focused`, `tab.focused`, `workspace.focused`, `pane.closed` and `pane.agent_status_changed` event, each pane's foreground command (argv) and cwd are written to the plugin state dir if the command is on the allowlist. Agents are saved with their session id ([details](#agents-keep-their-launch-flags)) and plugin panes as their plugin ([details](#plugin-panes)). Run the `respawn: save now` action to save on demand.
-- **Restore**: the startup hook runs once Herdr has restored the session. It types each saved command back into its pane with `herdr pane run`, in background tabs and workspaces too, but only when that pane is back at a bare shell prompt. A pane that is still running something, for example after a live handoff, is left alone.
-  - The command gets a leading space so it stays out of shell history (bash `HISTCONTROL=ignorespace`/`ignoreboth`, zsh `setopt HIST_IGNORE_SPACE`).
+- **Restore**: the startup hook runs once Herdr has restored the session. It types each saved command back into its pane with `herdr pane run`, in background tabs and workspaces too, but only when that pane is back at a bare shell prompt: nothing in the foreground but an interactive shell. A pane that is still running something (a script, an `sh -c` job, a live handoff) is left alone.
+  - The command gets a leading space so it stays out of shell history (fish by default, bash with `HISTCONTROL=ignorespace`/`ignoreboth`, zsh with `setopt HIST_IGNORE_SPACE`).
   - It is prefixed with `cd <dir> &&` when the pane's shell is not already in the saved directory. If that directory no longer exists, the command does not run.
   - An absolute program path that is gone after the reboot (or lives under a temp dir or `/nix/store`) is replaced by the program name, so the shell's `PATH` finds it.
 - A corrupt snapshot is moved aside to `<file>.bad` and saving starts fresh. Snapshots of named sessions deleted since are removed at startup.
@@ -91,6 +91,7 @@ Other flags and any prompt are dropped. With Herdr's agent resume on (the defaul
 
 Herdr brings plugin panes, such as a [reviewr](https://github.com/persiyanov/herdr-reviewr) diff beside an agent or a memex sidebar, back as plain shells too. respawn recognises them by their command living in the plugin's directory, and starts the plugin's current command for that pane again with the environment Herdr gives plugin panes, so quitting it closes the pane as before.
 
+- The entrypoint's command has to be a program or script in the plugin's directory (run directly or by an interpreter such as `bash script.sh`). One that stays in a wrapper, such as `sh -c '...'` without `exec`, is not recognised.
 - It uses the pane entrypoint the pane was opened with. When a plugin has several entrypoints with the same command (memex's desk, palette and sidebar), that is read from the process environment.
 - A plugin that has since been disabled or uninstalled is skipped.
 - The allowlist does not apply to plugin panes.
@@ -141,7 +142,7 @@ pane_history = true
 Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.4.0 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.4.1 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -154,7 +155,7 @@ herdr plugin link .
 ./test.sh   # isolated Herdr started by its client; reboot-like SIGTERM; expect the relaunch
 ```
 
-`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist, a stand-in `claude --dangerously-skip-permissions` that must come back with its flag, Claude's agent view, and a stand-in plugin pane opened on the second of two entrypoints that share one command. It needs `tmux`, `htop`, `vim` and `python3`, runs on Linux only (it finds its server through `/proc`), and never touches your own Herdr session.
+`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist, a stand-in `claude --dangerously-skip-permissions` that must come back with its flag, Claude's agent view, and a stand-in plugin pane opened on the second of two entrypoints that share one command. It needs `tmux`, `jq`, `htop`, `vim`, `python3` and procps (`top`, `pgrep`), runs on Linux only (it finds its server through `/proc`), and never touches your own Herdr session.
 
 `docs/demo/record.sh` re-records `docs/demo.svg` in an isolated Herdr with a made-up project (needs `tmux`, `lazygit` and network access for reviewr).
 
