@@ -243,16 +243,24 @@ restore_locked() {
   [ -n "$gap" ] || gap=0.100
   started=""
   plugins_now=$("$H" plugin list --json 2>/dev/null)
+  # Panes come back with shells that are still starting: rc files and prompt tools run in the
+  # foreground for a moment (fish loading its config, say). Give them all until the deadline to
+  # settle; a pane still busy after it is running something and is left alone.
+  deadline=$(($(date +%s) + 15))
   restored=$(jq -c '.panes[]' "$state" | while IFS= read -r e; do
     p=$(jq -r .pane <<<"$e")
     [ "$agents" = true ] || [ -z "$(jq -r '.agent // empty' <<<"$e")" ] || continue
-    info=$("$H" pane process-info --pane "$p" 2>/dev/null) || continue
     # Only type into a pane that came back as a bare shell: the shell alone in the foreground,
     # with options at most. `sh -c ...` or `bash script.sh` is running something, and text typed
     # now would run when it ends. Anything else is live (handoff) or reused.
-    jq -e '.result.process_info.foreground_processes as $f | ($f | length) == 1
-      and ($f[0].argv[0] // "" | split("/") | last | ltrimstr("-") | IN("bash", "zsh", "fish", "sh", "dash", "ksh"))
-      and ($f[0].argv[1:] | all(startswith("-") and . != "-c"))' <<<"$info" >/dev/null || continue
+    while :; do
+      info=$("$H" pane process-info --pane "$p" 2>/dev/null) || continue 2
+      jq -e '.result.process_info.foreground_processes as $f | ($f | length) == 1
+        and ($f[0].argv[0] // "" | split("/") | last | ltrimstr("-") | IN("bash", "zsh", "fish", "sh", "dash", "ksh"))
+        and ($f[0].argv[1:] | all(startswith("-") and . != "-c"))' <<<"$info" >/dev/null && break
+      [ "$(date +%s)" -lt "$deadline" ] || continue 2
+      sleep 0.5
+    done
     cur=$(jq -r '.result.process_info.foreground_processes[0].cwd // ""' <<<"$info")
     # The leading space keeps the command out of shell history (fish, bash ignorespace, zsh HIST_IGNORE_SPACE).
     plug=$(jq -r '.plugin // empty' <<<"$e")

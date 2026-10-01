@@ -1,6 +1,6 @@
 id = "devicki.respawn"
 name = "respawn"
-version = "0.7.1"
+version = "0.7.2"
 min_herdr_version = "0.9.1"
 platforms = ["linux", "macos"]
 description = "Relaunch lazygit, editors and other allowlisted TUIs in their panes after a Herdr server restart or reboot."

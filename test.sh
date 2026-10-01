@@ -102,6 +102,10 @@ sleep 1.5
 h plugin action invoke devicki.respawn.save >/dev/null
 sleep 1
 
+# From here on shells take a while to start, as a heavy rc file or fish config does: respawn has
+# to wait for them instead of taking the busy start for a pane in use.
+printf 'sleep 2\n' >"$work/home/.bashrc"
+
 # The "reboot".
 srv=$(test_server)
 [ -n "$srv" ] && [ "$(wc -l <<<"$srv")" -eq 1 ] || { echo "FAIL: test server not identified: '$srv'" >&2; exit 1; }
@@ -110,7 +114,7 @@ kill -TERM "$srv"
 for _ in $(seq 25); do kill -0 "$srv" 2>/dev/null || break; sleep 0.2; done
 
 client
-sleep 4
+sleep 7
 fail=0
 check() {
   local got
@@ -172,7 +176,7 @@ rm -f "$work/stopping"
 h server stop >/dev/null 2>&1
 sleep 1
 client
-sleep 4
+sleep 7
 check "$p1" htop
 [ "$fail" -eq 0 ] && echo PASS
 exit "$fail"

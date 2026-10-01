@@ -18,7 +18,7 @@ There is nothing to set up for the first three. Install it, and it starts saving
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.1
+herdr plugin install devicki/herdr-respawn --ref v0.7.2
 ```
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
@@ -30,7 +30,7 @@ Install it in every account that runs a Herdr server. Each server, and each name
 ## How it works
 
 - **Save**: on every `pane.focused`, `tab.focused`, `workspace.focused`, `pane.closed` and `pane.agent_status_changed` event, each pane's foreground command (argv) and cwd are written to the plugin state dir if the command is on the allowlist. Agents are saved with their session id ([details](#agents-keep-their-launch-flags)) and plugin panes as their plugin ([details](#plugin-panes)). Run the `respawn: save now` action to save on demand.
-- **Restore**: the startup hook runs once Herdr has restored the session. It types each saved command back into its pane with `herdr pane run`, in background tabs and workspaces too, but only when that pane is back at a bare shell prompt: nothing in the foreground but an interactive shell. A pane that is still running something (a script, an `sh -c` job, a live handoff) is left alone.
+- **Restore**: the startup hook runs once Herdr has restored the session. It types each saved command back into its pane with `herdr pane run`, in background tabs and workspaces too, but only when that pane is back at a bare shell prompt: nothing in the foreground but an interactive shell. Shells that are still starting (rc files, a fish config, prompt tools) get up to 15 seconds to settle; a pane that is still running something after that (a script, an `sh -c` job, a live handoff) is left alone.
   - The command gets a leading space so it stays out of shell history (fish by default, bash with `HISTCONTROL=ignorespace`/`ignoreboth`, zsh with `setopt HIST_IGNORE_SPACE`).
   - It is prefixed with `cd <dir> &&` when the pane's shell is not already in the saved directory. If that directory no longer exists, the command does not run.
   - An absolute program path that is gone after the reboot (or lives under a temp dir or `/nix/store`) is replaced by the program name, so the shell's `PATH` finds it.
@@ -161,7 +161,7 @@ pane_history = true
 Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.1 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.7.2 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
