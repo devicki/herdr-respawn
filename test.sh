@@ -41,7 +41,7 @@ trap cleanup EXIT
 
 mkdir -p "$work/home/.config/herdr" "$work/proj" "$work/bin"
 ln -sfn "$work/home" "$home"
-printf 'onboarding = false\n[update]\nversion_check = false\nmanifest_check = false\n[ui.sound]\nenabled = false\n[session]\nresume_agents_on_restore = false\n' \
+printf 'onboarding = false\n[update]\nversion_check = false\nmanifest_check = false\n[ui.sound]\nenabled = false\n[session]\nresume_agents_on_restore = false\nstartup_per_agent_delay_ms = 1000\n' \
   >"$work/home/.config/herdr/config.toml"
 # A stand-in claude: a process named claude that keeps its arguments and waits.
 printf '#!/usr/bin/env bash\nexec -a claude python3 -c "import time; time.sleep(1e9)" "$@"\n' >"$work/bin/claude"
@@ -124,6 +124,12 @@ case "$(fg_of "$p6")" in
 (claude*" --dangerously-skip-permissions agents") ;;
 (*) echo "FAIL: $p6 runs '$(fg_of "$p6")', want Claude's agent view back" >&2; fail=1 ;;
 esac
+# The two agents started one at a time, startup_per_agent_delay_ms (1 s) apart.
+started_at() { awk '{ print $22 }' /proc/"$(h pane process-info --pane "$1" | jq -r '.result.process_info.foreground_processes[0].pid')"/stat 2>/dev/null; }
+s5=$(started_at "$p5"); s6=$(started_at "$p6"); hz=$(getconf CLK_TCK)
+d=$(( ${s5:-0} > ${s6:-0} ? ${s5:-0} - ${s6:-0} : ${s6:-0} - ${s5:-0} ))
+[ -n "$s5" ] && [ -n "$s6" ] && [ $((d * 1000 / hz)) -ge 800 ] ||
+  { echo "FAIL: the agents started $((d * 1000 / hz)) ms apart, want about 1000" >&2; fail=1; }
 # The plugin pane: its command again, with the plugin environment of the entrypoint it ran.
 pid=$(h pane process-info --pane "$p7" | jq -r '.result.process_info.foreground_process_group_id')
 case "$(fg_of "$p7")" in (*/viewer/bin/viewer) ;; (*) echo "FAIL: $p7 runs '$(fg_of "$p7")', want the plugin pane back" >&2; fail=1 ;; esac

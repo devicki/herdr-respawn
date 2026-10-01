@@ -18,7 +18,7 @@ There is nothing to set up for the first three. Install it, and it starts saving
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.5.0
+herdr plugin install devicki/herdr-respawn --ref v0.6.0
 ```
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
@@ -93,6 +93,14 @@ respawn then resumes Claude Code, Codex and Devin itself, with the session id He
 Other flags and any prompt are dropped. With Herdr's agent resume on (the default), respawn leaves agents alone, since two resumers would type into the same pane.
 
 - With it off, agents other than these three come back as plain shells. Keep it on if you use them.
+- Agents start one at a time, 100 ms apart, as Herdr's own resume does. Each brings up its runtime and MCP servers, and Claude Code sessions share config files, so many at once make a load spike. With many sessions, widen the gap with Herdr's own setting, which respawn follows:
+
+  ```toml
+  [session]
+  startup_per_agent_delay_ms = 1000
+  ```
+
+  TUIs and plugin panes start at once.
 - Since Herdr 0.9.2, an agent can report its own resume command, flags included. Such agents keep their launch flags with Herdr's resume on and need nothing from respawn.
 - The agent has to run under its own name (`claude`, `codex`, `devin`); one started through a wrapper such as `npx` is not recognized.
 - Claude Code's agent view (`claude agents`) manages background sessions and has no session of its own, so it is relaunched exactly as it was started, flags included. This works with Herdr's agent resume on as well.
@@ -152,7 +160,7 @@ pane_history = true
 Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.5.0 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.6.0 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -165,7 +173,7 @@ herdr plugin link .
 ./test.sh   # isolated Herdr started by its client; reboot-like SIGTERM; expect the relaunch
 ```
 
-`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist, a stand-in `claude --dangerously-skip-permissions` that must come back with its flag, Claude's agent view, and a stand-in plugin pane opened on the second of two entrypoints that share one command, and checks that a stand-in herdr-pager is handed the restore notification. It needs `tmux`, `jq`, `htop`, `vim`, `python3` and procps (`top`, `pgrep`), runs on Linux only (it finds its server through `/proc`), and never touches your own Herdr session.
+`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist, a stand-in `claude --dangerously-skip-permissions` that must come back with its flag, Claude's agent view, and a stand-in plugin pane opened on the second of two entrypoints that share one command, and checks that the two agents start `startup_per_agent_delay_ms` apart and that a stand-in herdr-pager is handed the restore notification. It needs `tmux`, `jq`, `htop`, `vim`, `python3` and procps (`top`, `pgrep`), runs on Linux only (it finds its server through `/proc`), and never touches your own Herdr session.
 
 `docs/demo/record.sh` re-records `docs/demo.svg` in an isolated Herdr with a made-up project (needs `tmux`, `lazygit` and network access for reviewr).
 

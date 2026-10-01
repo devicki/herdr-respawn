@@ -212,6 +212,16 @@ restore_locked() {
     t == "session" && /^[[:space:]]*resume_agents_on_restore[[:space:]]*=[[:space:]]*false/ { off = 1 }
     t == "" && /^[[:space:]]*session\.resume_agents_on_restore[[:space:]]*=[[:space:]]*false/ { off = 1 }
     END { exit !off }' "$cfg" && agents=true
+  # Agents start one at a time, as Herdr's own resume does: each brings up a runtime and its MCP
+  # servers, and Claude Code sessions share config files. Herdr's
+  # `[session] startup_per_agent_delay_ms` (default 100) sets the gap for both.
+  gap=$(awk '
+    /^[[:space:]]*\[/ { t = $0; gsub(/[][[:space:]]/, "", t) }
+    (t == "session" && sub(/^[[:space:]]*startup_per_agent_delay_ms[[:space:]]*=[[:space:]]*/, "")) ||
+    (t == "" && sub(/^[[:space:]]*session\.startup_per_agent_delay_ms[[:space:]]*=[[:space:]]*/, "")) { ms = $0 + 0; set = 1 }
+    END { if (!set || ms < 0) ms = 100; printf "%.3f", ms / 1000 }' "$cfg" 2>/dev/null)
+  [ -n "$gap" ] || gap=0.100
+  started=""
   plugins_now=$("$H" plugin list --json 2>/dev/null)
   restored=$(jq -c '.panes[]' "$state" | while IFS= read -r e; do
     p=$(jq -r .pane <<<"$e")
@@ -249,6 +259,10 @@ restore_locked() {
       cmd=$(jq -r --arg cur "$cur" --arg a0 "$a0" "$q"'
         .argv[0] = $a0
         | " " + (if .cwd != $cur then "cd \(.cwd | q) && " else "" end) + (.argv | map(q) | join(" "))' <<<"$e")
+    fi
+    if jq -e '.agent or (.argv[0] // "" | split("/") | last | IN("claude", "codex", "devin"))' <<<"$e" >/dev/null; then
+      [ -z "$started" ] || sleep "$gap"
+      started=1
     fi
     "$H" pane run "$p" "$cmd" >/dev/null && printf '%s %s\n' "$p" "${a0##*/}"
   done)

@@ -18,7 +18,7 @@ Herdr는 워크스페이스, 탭, 페인, cwd를 스스로 복원하고, 지원�
 ## 설치
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.5.0
+herdr plugin install devicki/herdr-respawn --ref v0.6.0
 ```
 
 `--ref`는 설치할 릴리스를 고정해요. 빼면 `main` 브랜치의 최신 코드가 설치돼요. 릴리스 목록은 [tags](https://github.com/devicki/herdr-respawn/tags)에서 볼 수 있어요.
@@ -93,6 +93,14 @@ resume_agents_on_restore = false
 그 밖의 인자와 프롬프트는 빼고 열어요. Herdr의 에이전트 복원이 켜져 있으면(기본값) respawn은 에이전트를 건드리지 않아요. 둘이 같은 페인에 동시에 입력하게 되기 때문이에요.
 
 - 복원을 끄면 이 세 가지 외의 에이전트는 빈 셸로 돌아와요. 다른 에이전트도 쓴다면 켜 두세요.
+- 에이전트는 Herdr의 기본 복원처럼 0.1초 간격으로 하나씩 켜요. 에이전트는 켤 때마다 런타임과 MCP 서버를 같이 띄우고, Claude Code 세션들은 설정 파일을 함께 쓰기 때문에 한꺼번에 켜면 순간 부하가 커져요. 세션이 많다면 Herdr 설정에서 간격을 늘리세요. respawn도 이 값을 따라요.
+
+  ```toml
+  [session]
+  startup_per_agent_delay_ms = 1000
+  ```
+
+  TUI와 플러그인 페인은 바로 켜요.
 - Herdr 0.9.2부터는 에이전트가 실행 옵션을 포함한 "다시 여는 명령"을 Herdr에 직접 알려 줄 수 있어요. 이런 에이전트는 Herdr 복원을 켜 둔 상태로도 실행 옵션이 유지돼서 respawn이 필요 없어요.
 - 에이전트가 자기 이름(`claude`, `codex`, `devin`)으로 실행돼야 해요. `npx` 같은 래퍼로 실행한 경우는 인식하지 못해요.
 - Claude Code의 agent view(`claude agents`)는 백그라운드 세션을 관리하는 화면이라 다시 열 세션이 없어요. 그래서 실행했던 인자 그대로 다시 실행해요. Herdr의 에이전트 복원이 켜져 있어도 동작해요.
@@ -152,7 +160,7 @@ pane_history = true
 Herdr에는 업데이트 명령이 없어서, 새 태그로 다시 설치하면 돼요. 다시 설치해도 허용 목록, 저장된 스냅샷, 켜짐/꺼짐 상태는 그대로 남아요. 설치된 버전은 `herdr plugin list`로 확인할 수 있어요.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.5.0 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.6.0 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -165,7 +173,7 @@ herdr plugin link .
 ./test.sh   # 클라이언트로 띄운 격리된 Herdr에서 재부팅처럼 SIGTERM을 보내고 재실행을 확인해요
 ```
 
-`test.sh`는 포커스된 페인, 뒤에 있는 탭, 뒤에 있는 워크스페이스에서 TUI를 실행하고, 허용 목록에 없는 명령, 인자를 유지한 채 돌아와야 하는 가짜 `claude --dangerously-skip-permissions`, Claude의 agent view, 명령이 같은 두 화면 중 두 번째로 연 가짜 플러그인 페인도 함께 띄우고, 가짜 herdr-pager가 복원 알림을 넘겨받는지도 확인해요. `tmux`, `jq`, `htop`, `vim`, `python3`, procps(`top`, `pgrep`)가 필요하고, 테스트 서버를 `/proc`으로 찾기 때문에 Linux에서만 돌아가요. 사용 중인 Herdr 세션은 건드리지 않아요.
+`test.sh`는 포커스된 페인, 뒤에 있는 탭, 뒤에 있는 워크스페이스에서 TUI를 실행하고, 허용 목록에 없는 명령, 인자를 유지한 채 돌아와야 하는 가짜 `claude --dangerously-skip-permissions`, Claude의 agent view, 명령이 같은 두 화면 중 두 번째로 연 가짜 플러그인 페인도 함께 띄우고, 두 에이전트가 `startup_per_agent_delay_ms` 간격으로 켜지는지, 가짜 herdr-pager가 복원 알림을 넘겨받는지도 확인해요. `tmux`, `jq`, `htop`, `vim`, `python3`, procps(`top`, `pgrep`)가 필요하고, 테스트 서버를 `/proc`으로 찾기 때문에 Linux에서만 돌아가요. 사용 중인 Herdr 세션은 건드리지 않아요.
 
 `docs/demo/record.sh`는 가상의 프로젝트로 구성한 격리된 Herdr에서 `docs/demo.svg`를 다시 녹화해요(`tmux`, `lazygit`, reviewr 설치용 네트워크 필요).
 
