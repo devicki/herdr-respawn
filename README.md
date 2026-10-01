@@ -18,7 +18,7 @@ There is nothing to set up for the first three. Install it, and it starts saving
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.6.0
+herdr plugin install devicki/herdr-respawn --ref v0.7.0
 ```
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
@@ -34,6 +34,7 @@ Install it in every account that runs a Herdr server. Each server, and each name
   - The command gets a leading space so it stays out of shell history (fish by default, bash with `HISTCONTROL=ignorespace`/`ignoreboth`, zsh with `setopt HIST_IGNORE_SPACE`).
   - It is prefixed with `cd <dir> &&` when the pane's shell is not already in the saved directory. If that directory no longer exists, the command does not run.
   - An absolute program path that is gone after the reboot (or lives under a temp dir or `/nix/store`) is replaced by the program name, so the shell's `PATH` finds it.
+- **Shutdown**: a client still connected while the machine shuts down (an SSH session from a laptop, say) can start Herdr again in the middle of it. That server then sees every pane killed: it would persist each one as closed, emptying workspaces, and saves would record the dying panes. So on systemd, during a shutdown respawn saves nothing and stops such a server as soon as it starts, which saves the layout it just loaded; the snapshot waits for the start after boot.
 - A corrupt snapshot is moved aside to `<file>.bad` and saving starts fresh. Snapshots of named sessions deleted since are removed at startup.
 
 ### Restore notification
@@ -160,7 +161,7 @@ pane_history = true
 Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.6.0 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.7.0 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -173,7 +174,7 @@ herdr plugin link .
 ./test.sh   # isolated Herdr started by its client; reboot-like SIGTERM; expect the relaunch
 ```
 
-`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist, a stand-in `claude --dangerously-skip-permissions` that must come back with its flag, Claude's agent view, and a stand-in plugin pane opened on the second of two entrypoints that share one command, and checks that the two agents start `startup_per_agent_delay_ms` apart and that a stand-in herdr-pager is handed the restore notification. It needs `tmux`, `jq`, `htop`, `vim`, `python3` and procps (`top`, `pgrep`), runs on Linux only (it finds its server through `/proc`), and never touches your own Herdr session.
+`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist, a stand-in `claude --dangerously-skip-permissions` that must come back with its flag, Claude's agent view, and a stand-in plugin pane opened on the second of two entrypoints that share one command, and checks that the two agents start `startup_per_agent_delay_ms` apart and that a stand-in herdr-pager is handed the restore notification, then fakes a shutdown and checks that a server started during it is stopped at once with the snapshot untouched. It needs `tmux`, `jq`, `htop`, `vim`, `python3` and procps (`top`, `pgrep`), runs on Linux only (it finds its server through `/proc`), and never touches your own Herdr session.
 
 `docs/demo/record.sh` re-records `docs/demo.svg` in an isolated Herdr with a made-up project (needs `tmux`, `lazygit` and network access for reviewr).
 

@@ -16,7 +16,7 @@ herdr=$(command -v herdr)
 home="${XDG_RUNTIME_DIR:-/tmp}/respawn-test"
 tmx=(tmux -L respawn-test -f /dev/null)
 env_=(env -i HOME="$home" PATH="$work/bin:${herdr%/*}:/usr/local/bin:/usr/bin:/bin" TERM=xterm-256color
-  LANG=en_US.UTF-8 SHELL=/bin/bash)
+  LANG=en_US.UTF-8 SHELL=/bin/bash RESPAWN_SYSTEMCTL="$work/bin/systemctl")
 h() { "${env_[@]}" "$herdr" "$@"; }
 fg_of() { h pane process-info --pane "$1" | jq -r '[.result.process_info.foreground_processes[].argv | join(" ")] | first // "-"'; }
 client() {
@@ -43,6 +43,9 @@ mkdir -p "$work/home/.config/herdr" "$work/proj" "$work/bin"
 ln -sfn "$work/home" "$home"
 printf 'onboarding = false\n[update]\nversion_check = false\nmanifest_check = false\n[ui.sound]\nenabled = false\n[session]\nresume_agents_on_restore = false\nstartup_per_agent_delay_ms = 1000\n' \
   >"$work/home/.config/herdr/config.toml"
+# A stand-in systemctl: the machine is shutting down while $work/stopping exists.
+printf '#!/bin/sh\n[ -e "%s/stopping" ] && echo stopping || echo running\n' "$work" >"$work/bin/systemctl"
+chmod +x "$work/bin/systemctl"
 # A stand-in claude: a process named claude that keeps its arguments and waits.
 printf '#!/usr/bin/env bash\nexec -a claude python3 -c "import time; time.sleep(1e9)" "$@"\n' >"$work/bin/claude"
 chmod +x "$work/bin/claude"
@@ -140,5 +143,34 @@ case "$(cat "$work/paged" 2>/dev/null)" in
 (send\|-t\|"Herdr restarted · respawn restored 6 pane(s)"\|-g\|arrows_counterclockwise\|*claude\ x2*htop*test.viewer*top*vim*) ;;
 (*) echo "FAIL: herdr-pager was asked to send '$(cat "$work/paged" 2>/dev/null)'" >&2; fail=1 ;;
 esac
+
+# A shutdown, and a client that starts the server again in the middle of it: respawn saves
+# nothing, stops that server, and keeps the snapshot for the start after boot.
+snapfile=$(ls "$work"/home/.local/state/herdr/plugins/devicki.respawn/*.json)
+touch "$work/stopping"
+before=$(md5sum <"$snapfile")
+h plugin action invoke devicki.respawn.save >/dev/null
+sleep 1
+[ "$(md5sum <"$snapfile")" = "$before" ] || { echo "FAIL: saved while the machine was shutting down" >&2; fail=1; }
+srv=$(test_server)
+kill -TERM "$srv"
+"${tmx[@]}" kill-server 2>/dev/null
+for _ in $(seq 25); do kill -0 "$srv" 2>/dev/null || break; sleep 0.2; done
+before=$(md5sum <"$snapfile")
+log="$work/home/.config/herdr/herdr-server.log"
+starts=$(grep -c 'herdr starting' "$log")
+"${tmx[@]}" new-session -d -s c -x 160 -y 40 "$(printf '%q ' "${env_[@]}") $herdr"
+sleep 3
+[ "$(grep -c 'herdr starting' "$log")" -gt "$starts" ] && ! h pane list >/dev/null 2>&1 ||
+  { echo "FAIL: a server started during the shutdown kept running" >&2; fail=1; }
+[ "$(md5sum <"$snapfile")" = "$before" ] || { echo "FAIL: the snapshot changed during the shutdown" >&2; fail=1; }
+# The machine is back: the snapshot is restored as usual.
+rm -f "$work/stopping"
+"${tmx[@]}" kill-server 2>/dev/null
+h server stop >/dev/null 2>&1
+sleep 1
+client
+sleep 4
+check "$p1" htop
 [ "$fail" -eq 0 ] && echo PASS
 exit "$fail"

@@ -123,8 +123,16 @@ take_lock() { # [seconds to wait]
   done
 }
 
+# A Herdr that starts while the machine shuts down (a client reconnecting starts it) is about to
+# see every pane killed. Saving then would record the dying panes as bare shells, and Herdr would
+# persist each one as closed, emptying workspaces. So during a shutdown nothing is saved, and
+# such a server is stopped at once: stopping saves the layout it just loaded, and the snapshot
+# waits for the real start after boot. systemd only; elsewhere this never triggers.
+shutting_down() { [ "$(${RESPAWN_SYSTEMCTL:-systemctl} is-system-running 2>/dev/null)" = stopping ]; }
+
 # A save that finds the lock taken is skipped: the next event saves again.
 save() {
+  ! shutting_down || return 0
   take_lock || return 0
   save_locked
   local rc=$?
@@ -133,6 +141,11 @@ save() {
 }
 
 restore() {
+  if shutting_down; then
+    echo "the machine is shutting down: stopping this server, restore waits for the next start"
+    "$H" server stop >/dev/null 2>&1
+    return 0
+  fi
   take_lock 30 || return 1
   restore_locked
   local rc=$?
