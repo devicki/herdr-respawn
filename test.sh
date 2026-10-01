@@ -6,7 +6,7 @@
 # opened on the second of two entrypoints that share one command, then the server gets SIGTERM
 # and the client dies with it, and a new client starts the server again. Herdr's own agent resume
 # is off, so the agent must come back through respawn with its flag. Needs tmux, jq, htop, vim
-# and python3.
+# and python3. A stand-in herdr-pager records the restore notification respawn hands it.
 # TEST_WORK picks the scratch dir (default: a new mktemp dir).
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -67,9 +67,15 @@ title = "viewer"
 placement = "zoomed"
 command = ["sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/viewer\""]
 EOF
+# A stand-in herdr-pager that writes down what it was asked to send.
+mkdir -p "$work/pager/bin"
+printf '#!/usr/bin/env bash\nprintf "%%s|" "$@" >>"%s/paged"\n' "$work" >"$work/pager/bin/herdr-pager"
+printf 'id = "devicki.pager"\nname = "pager"\nversion = "0.0.1"\nmin_herdr_version = "0.9.1"\nplatforms = ["linux", "macos"]\n' \
+  >"$work/pager/herdr-plugin.toml"
 printf 'hello\n' >"$work/proj/notes.txt"
 h plugin link "$here" >/dev/null
 h plugin link "$work/viewer" >/dev/null
+h plugin link "$work/pager" >/dev/null
 
 client
 p1=$(h pane list | jq -r '.result.panes[0].pane_id')
@@ -123,5 +129,10 @@ pid=$(h pane process-info --pane "$p7" | jq -r '.result.process_info.foreground_
 case "$(fg_of "$p7")" in (*/viewer/bin/viewer) ;; (*) echo "FAIL: $p7 runs '$(fg_of "$p7")', want the plugin pane back" >&2; fail=1 ;; esac
 tr '\0' '\n' </proc/"$pid"/environ 2>/dev/null | grep -qx 'HERDR_PLUGIN_ENTRYPOINT_ID=other' ||
   { echo "FAIL: $p7 did not come back as entrypoint 'other'" >&2; fail=1; }
+# The phone hears about it through herdr-pager: what came back, in one message.
+case "$(cat "$work/paged" 2>/dev/null)" in
+(send\|-t\|"Herdr restarted · respawn restored 6 pane(s)"\|-g\|arrows_counterclockwise\|*claude\ x2*htop*test.viewer*top*vim*) ;;
+(*) echo "FAIL: herdr-pager was asked to send '$(cat "$work/paged" 2>/dev/null)'" >&2; fail=1 ;;
+esac
 [ "$fail" -eq 0 ] && echo PASS
 exit "$fail"

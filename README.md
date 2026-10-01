@@ -18,7 +18,7 @@ There is nothing to set up for the first three. Install it, and it starts saving
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.4.1
+herdr plugin install devicki/herdr-respawn --ref v0.5.0
 ```
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
@@ -44,6 +44,15 @@ respawn posts a toast such as `respawn: 4 pane(s) restored` with the names of wh
 [ui.toast]
 delivery = "herdr"      # or "terminal" / "system" for a desktop notification
 ```
+
+With [herdr-pager](https://github.com/devicki/herdr-pager) installed and enabled, your phone hears about it too, whether or not a client is attached:
+
+```
+🔄 [work] Herdr restarted · respawn restored 4 pane(s)
+claude x2, lazygit, persiyanov.reviewr
+```
+
+It goes out with herdr-pager's own settings and language (`lang = ko` in `pager.conf` for Korean), and names the session when it is a named one. There is nothing to set up, and without herdr-pager nothing changes.
 
 ## Allowlist
 
@@ -142,7 +151,7 @@ pane_history = true
 Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.4.1 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.5.0 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -155,7 +164,7 @@ herdr plugin link .
 ./test.sh   # isolated Herdr started by its client; reboot-like SIGTERM; expect the relaunch
 ```
 
-`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist, a stand-in `claude --dangerously-skip-permissions` that must come back with its flag, Claude's agent view, and a stand-in plugin pane opened on the second of two entrypoints that share one command. It needs `tmux`, `jq`, `htop`, `vim`, `python3` and procps (`top`, `pgrep`), runs on Linux only (it finds its server through `/proc`), and never touches your own Herdr session.
+`test.sh` runs TUIs in the focused pane, a background tab and a background workspace, next to a command off the allowlist, a stand-in `claude --dangerously-skip-permissions` that must come back with its flag, Claude's agent view, and a stand-in plugin pane opened on the second of two entrypoints that share one command, and checks that a stand-in herdr-pager is handed the restore notification. It needs `tmux`, `jq`, `htop`, `vim`, `python3` and procps (`top`, `pgrep`), runs on Linux only (it finds its server through `/proc`), and never touches your own Herdr session.
 
 `docs/demo/record.sh` re-records `docs/demo.svg` in an isolated Herdr with a made-up project (needs `tmux`, `lazygit` and network access for reviewr).
 

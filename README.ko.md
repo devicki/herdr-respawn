@@ -18,7 +18,7 @@ Herdr는 워크스페이스, 탭, 페인, cwd를 스스로 복원하고, 지원�
 ## 설치
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.4.1
+herdr plugin install devicki/herdr-respawn --ref v0.5.0
 ```
 
 `--ref`는 설치할 릴리스를 고정해요. 빼면 `main` 브랜치의 최신 코드가 설치돼요. 릴리스 목록은 [tags](https://github.com/devicki/herdr-respawn/tags)에서 볼 수 있어요.
@@ -44,6 +44,15 @@ respawn은 `respawn: 4 pane(s) restored`처럼 복원한 개수와 이름을 토
 [ui.toast]
 delivery = "herdr"      # 데스크톱 알림을 원하면 "terminal" 또는 "system"
 ```
+
+[herdr-pager](https://github.com/devicki/herdr-pager)를 설치해 켜 두면, 연결된 클라이언트가 없어도 폰으로 같은 소식이 가요.
+
+```
+🔄 [work] Herdr 재시작 · respawn이 페인 4개 복원
+claude x2, lazygit, persiyanov.reviewr
+```
+
+알림은 herdr-pager의 설정과 언어(`pager.conf`에 `lang = ko`면 한국어)를 따르고, named session이면 세션 이름도 붙여요. 따로 설정할 건 없고, herdr-pager가 없으면 지금과 똑같이 동작해요.
 
 ## 허용 목록
 
@@ -142,7 +151,7 @@ pane_history = true
 Herdr에는 업데이트 명령이 없어서, 새 태그로 다시 설치하면 돼요. 다시 설치해도 허용 목록, 저장된 스냅샷, 켜짐/꺼짐 상태는 그대로 남아요. 설치된 버전은 `herdr plugin list`로 확인할 수 있어요.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.4.1 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.5.0 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -155,7 +164,7 @@ herdr plugin link .
 ./test.sh   # 클라이언트로 띄운 격리된 Herdr에서 재부팅처럼 SIGTERM을 보내고 재실행을 확인해요
 ```
 
-`test.sh`는 포커스된 페인, 뒤에 있는 탭, 뒤에 있는 워크스페이스에서 TUI를 실행하고, 허용 목록에 없는 명령, 인자를 유지한 채 돌아와야 하는 가짜 `claude --dangerously-skip-permissions`, Claude의 agent view, 명령이 같은 두 화면 중 두 번째로 연 가짜 플러그인 페인도 함께 띄워요. `tmux`, `jq`, `htop`, `vim`, `python3`, procps(`top`, `pgrep`)가 필요하고, 테스트 서버를 `/proc`으로 찾기 때문에 Linux에서만 돌아가요. 사용 중인 Herdr 세션은 건드리지 않아요.
+`test.sh`는 포커스된 페인, 뒤에 있는 탭, 뒤에 있는 워크스페이스에서 TUI를 실행하고, 허용 목록에 없는 명령, 인자를 유지한 채 돌아와야 하는 가짜 `claude --dangerously-skip-permissions`, Claude의 agent view, 명령이 같은 두 화면 중 두 번째로 연 가짜 플러그인 페인도 함께 띄우고, 가짜 herdr-pager가 복원 알림을 넘겨받는지도 확인해요. `tmux`, `jq`, `htop`, `vim`, `python3`, procps(`top`, `pgrep`)가 필요하고, 테스트 서버를 `/proc`으로 찾기 때문에 Linux에서만 돌아가요. 사용 중인 Herdr 세션은 건드리지 않아요.
 
 `docs/demo/record.sh`는 가상의 프로젝트로 구성한 격리된 Herdr에서 `docs/demo.svg`를 다시 녹화해요(`tmux`, `lazygit`, reviewr 설치용 네트워크 필요).
 

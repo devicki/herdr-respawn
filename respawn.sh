@@ -173,6 +173,24 @@ save_locked() {
     mv "$tmp" "$state" || rm -f "$tmp"
 }
 
+# The phone hears about a restore too when herdr-pager is installed and enabled. It runs detached
+# with pager's own settings and language, so a slow or missing ntfy server never holds up the restore.
+notify_pager() { # count, what came back
+  local root pcfg lang title session=""
+  root=$(jq -r 'first(.result.plugins[] | select(.plugin_id == "devicki.pager" and .enabled)) | .plugin_root' \
+    <<<"$plugins_now" 2>/dev/null)
+  [ -n "$root" ] && [ -f "$root/bin/herdr-pager" ] || return 0
+  pcfg=$("$H" plugin config-dir devicki.pager 2>/dev/null) && [ -n "$pcfg" ] || return 0
+  case "$sock" in (*/sessions/*/*) session=" ($(basename "${sock%/*}"))" ;; esac
+  lang=$(sed -n 's/^[[:space:]]*lang[[:space:]]*=[[:space:]]*//p' "$pcfg/pager.conf" 2>/dev/null | tail -n1)
+  case "$lang" in
+  (ko*) title="Herdr 재시작$session · respawn이 페인 $1개 복원" ;;
+  (*) title="Herdr restarted$session · respawn restored $1 pane(s)" ;;
+  esac
+  HERDR_PLUGIN_CONFIG_DIR=$pcfg HERDR_PLUGIN_STATE_DIR="${dir%/*}/devicki.pager" \
+    nohup bash "$root/bin/herdr-pager" send -t "$title" -g arrows_counterclockwise "$2" >/dev/null 2>&1 &
+}
+
 restore_locked() {
   # Housekeeping: snapshots of named sessions deleted since (`herdr session delete` removes
   # their directory), unreadable snapshots of any session, and temp files a crash left behind.
@@ -206,7 +224,7 @@ restore_locked() {
       and ($f[0].argv[0] // "" | split("/") | last | ltrimstr("-") | IN("bash", "zsh", "fish", "sh", "dash", "ksh"))
       and ($f[0].argv[1:] | all(startswith("-") and . != "-c"))' <<<"$info" >/dev/null || continue
     cur=$(jq -r '.result.process_info.foreground_processes[0].cwd // ""' <<<"$info")
-    # The leading space keeps the command out of shell history (bash ignorespace, zsh HIST_IGNORE_SPACE).
+    # The leading space keeps the command out of shell history (fish, bash ignorespace, zsh HIST_IGNORE_SPACE).
     plug=$(jq -r '.plugin // empty' <<<"$e")
     if [ -n "$plug" ]; then
       # The plugin's current command for that entrypoint (its root moves on reinstall), with the
@@ -236,8 +254,10 @@ restore_locked() {
   done)
   if [ -n "$restored" ]; then
     sed 's/^/restored /' <<<"$restored"
-    "$H" notification show "respawn: $(grep -c '' <<<"$restored") pane(s) restored" \
-      --body "$(cut -d' ' -f2 <<<"$restored" | sort | uniq -c | awk '{printf "%s%s", sep, $2 ($1 > 1 ? " x" $1 : ""); sep=", "}')" >/dev/null 2>&1 || :
+    n=$(grep -c '' <<<"$restored")
+    what=$(cut -d' ' -f2 <<<"$restored" | sort | uniq -c | awk '{printf "%s%s", sep, $2 ($1 > 1 ? " x" $1 : ""); sep=", "}')
+    "$H" notification show "respawn: $n pane(s) restored" --body "$what" >/dev/null 2>&1 || :
+    notify_pager "$n" "$what"
   fi
   # Adopt the snapshot for this server run so saves resume.
   tmp=$(mktemp "$state.tmp.XXXXXX") && jq --arg i "$instance" '.instance = $i' "$state" >"$tmp" && mv "$tmp" "$state"
