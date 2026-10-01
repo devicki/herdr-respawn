@@ -16,7 +16,7 @@ herdr=$(command -v herdr)
 home="${XDG_RUNTIME_DIR:-/tmp}/respawn-test"
 tmx=(tmux -L respawn-test -f /dev/null)
 env_=(env -i HOME="$home" PATH="$work/bin:${herdr%/*}:/usr/local/bin:/usr/bin:/bin" TERM=xterm-256color
-  LANG=en_US.UTF-8 SHELL=/bin/bash RESPAWN_SYSTEMCTL="$work/bin/systemctl")
+  LANG=en_US.UTF-8 SHELL=/bin/bash RESPAWN_SYSTEMCTL="$work/bin/systemctl" RESPAWN_BUSCTL="$work/bin/busctl")
 h() { "${env_[@]}" "$herdr" "$@"; }
 fg_of() { h pane process-info --pane "$1" | jq -r '[.result.process_info.foreground_processes[].argv | join(" ")] | first // "-"'; }
 client() {
@@ -43,9 +43,11 @@ mkdir -p "$work/home/.config/herdr" "$work/proj" "$work/bin"
 ln -sfn "$work/home" "$home"
 printf 'onboarding = false\n[update]\nversion_check = false\nmanifest_check = false\n[ui.sound]\nenabled = false\n[session]\nresume_agents_on_restore = false\nstartup_per_agent_delay_ms = 1000\n' \
   >"$work/home/.config/herdr/config.toml"
-# A stand-in systemctl: the machine is shutting down while $work/stopping exists.
-printf '#!/bin/sh\n[ -e "%s/stopping" ] && echo stopping || echo running\n' "$work" >"$work/bin/systemctl"
-chmod +x "$work/bin/systemctl"
+# Stand-ins for logind and systemd while the machine is shutting down: logind announces it
+# ($work/stopping) well before systemd reports it, so systemctl keeps saying running.
+printf '#!/bin/sh\n[ -e "%s/stopping" ] && echo "b true" || echo "b false"\n' "$work" >"$work/bin/busctl"
+printf '#!/bin/sh\necho running\n' >"$work/bin/systemctl"
+chmod +x "$work/bin/busctl" "$work/bin/systemctl"
 # A stand-in claude: a process named claude that keeps its arguments and waits.
 printf '#!/usr/bin/env bash\nexec -a claude python3 -c "import time; time.sleep(1e9)" "$@"\n' >"$work/bin/claude"
 chmod +x "$work/bin/claude"

@@ -127,8 +127,15 @@ take_lock() { # [seconds to wait]
 # see every pane killed. Saving then would record the dying panes as bare shells, and Herdr would
 # persist each one as closed, emptying workspaces. So during a shutdown nothing is saved, and
 # such a server is stopped at once: stopping saves the layout it just loaded, and the snapshot
-# waits for the real start after boot. systemd only; elsewhere this never triggers.
-shutting_down() { [ "$(${RESPAWN_SYSTEMCTL:-systemctl} is-system-running 2>/dev/null)" = stopping ]; }
+# waits for the real start after boot. A shutdown starts when logind announces it
+# (PreparingForShutdown, the signal Herdr saves on); systemd itself reports `stopping` only once
+# logind has waited out its inhibitor delay, up to 30 s later, and the dangerous server starts in
+# between. systemd only; elsewhere this never triggers.
+shutting_down() {
+  ${RESPAWN_BUSCTL:-busctl} --timeout=2 get-property org.freedesktop.login1 /org/freedesktop/login1 \
+    org.freedesktop.login1.Manager PreparingForShutdown 2>/dev/null | grep -q true ||
+    [ "$(${RESPAWN_SYSTEMCTL:-systemctl} is-system-running 2>/dev/null)" = stopping ]
+}
 
 # A save that finds the lock taken is skipped: the next event saves again.
 save() {

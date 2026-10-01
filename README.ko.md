@@ -18,7 +18,7 @@ Herdr는 워크스페이스, 탭, 페인, cwd를 스스로 복원하고, 지원�
 ## 설치
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.0
+herdr plugin install devicki/herdr-respawn --ref v0.7.1
 ```
 
 `--ref`는 설치할 릴리스를 고정해요. 빼면 `main` 브랜치의 최신 코드가 설치돼요. 릴리스 목록은 [tags](https://github.com/devicki/herdr-respawn/tags)에서 볼 수 있어요.
@@ -34,7 +34,7 @@ Herdr 서버를 쓰는 계정마다 설치하세요. 서버마다, 그리고 네
   - 명령 앞에 공백을 붙여 셸 히스토리에 남지 않게 해요(fish는 기본으로, bash는 `HISTCONTROL=ignorespace`/`ignoreboth`, zsh는 `setopt HIST_IGNORE_SPACE`일 때).
   - 페인의 셸이 저장된 폴더에 있지 않으면 `cd <폴더> &&`를 앞에 붙여요. 그 폴더가 없어졌다면 명령은 실행되지 않아요.
   - 재부팅 후 사라진 절대 경로의 프로그램(임시 폴더나 `/nix/store` 아래 경로 포함)은 프로그램 이름으로 바꿔서, 셸의 `PATH`에서 찾게 해요.
-- **시스템 종료**: 컴퓨터가 꺼지는 도중에도 연결이 남아 있는 클라이언트(예: 노트북의 SSH 연결)가 Herdr를 다시 켤 수 있어요. 그 서버는 곧 모든 페인이 강제로 꺼지는 걸 보게 되고, 이를 "페인을 닫았다"로 저장해 워크스페이스를 지워 버려요. respawn 저장도 꺼지는 페인을 기록하게 돼요. 그래서 systemd 환경에서는 종료 중에 respawn이 저장하지 않고, 그렇게 켜진 서버는 시작하자마자 멈춰요. 멈출 때 방금 불러온 레이아웃이 그대로 저장되고, 스냅숏은 재부팅 뒤 시작을 기다려요.
+- **시스템 종료**: 컴퓨터가 꺼지는 도중에도 연결이 남아 있는 클라이언트(예: 노트북의 SSH 연결)가 Herdr를 다시 켤 수 있어요. 그 서버는 곧 모든 페인이 강제로 꺼지는 걸 보게 되고, 이를 "페인을 닫았다"로 저장해 워크스페이스를 지워 버려요. respawn 저장도 꺼지는 페인을 기록하게 돼요. 그래서 systemd 환경에서는 logind가 종료를 알리는 순간부터(Herdr가 저장하는 바로 그 신호로, 실제 종료가 시작되기 최대 30초 전이에요) respawn이 저장하지 않고, 그렇게 켜진 서버는 시작하자마자 멈춰요. 멈출 때 방금 불러온 레이아웃이 그대로 저장되고, 스냅숏은 재부팅 뒤 시작을 기다려요.
 - 스냅샷 파일이 깨졌으면 `<파일>.bad`로 옮기고 새로 저장을 시작해요. 삭제된 네임드 세션의 스냅샷은 시작할 때 정리해요.
 
 ### 복원 알림
@@ -161,7 +161,7 @@ pane_history = true
 Herdr에는 업데이트 명령이 없어서, 새 태그로 다시 설치하면 돼요. 다시 설치해도 허용 목록, 저장된 스냅샷, 켜짐/꺼짐 상태는 그대로 남아요. 설치된 버전은 `herdr plugin list`로 확인할 수 있어요.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.0 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.7.1 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
