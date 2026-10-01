@@ -93,6 +93,7 @@ respawn then resumes Claude Code, Codex and Devin itself, with the session id He
 Other flags and any prompt are dropped. With Herdr's agent resume on (the default), respawn leaves agents alone, since two resumers would type into the same pane.
 
 - With it off, agents other than these three come back as plain shells. Keep it on if you use them.
+- Since Herdr 0.9.2, an agent can report its own resume command, flags included. Such agents keep their launch flags with Herdr's resume on and need nothing from respawn.
 - The agent has to run under its own name (`claude`, `codex`, `devin`); one started through a wrapper such as `npx` is not recognized.
 - Claude Code's agent view (`claude agents`) manages background sessions and has no session of its own, so it is relaunched exactly as it was started, flags included. This works with Herdr's agent resume on as well.
 
