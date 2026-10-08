@@ -18,7 +18,7 @@ Herdr는 워크스페이스, 탭, 페인, cwd를 스스로 복원하고, 지원�
 ## 설치
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.2
+herdr plugin install devicki/herdr-respawn --ref v0.7.3
 ```
 
 `--ref`는 설치할 릴리스를 고정해요. 빼면 `main` 브랜치의 최신 코드가 설치돼요. 릴리스 목록은 [tags](https://github.com/devicki/herdr-respawn/tags)에서 볼 수 있어요.
@@ -161,7 +161,7 @@ pane_history = true
 Herdr에는 업데이트 명령이 없어서, 새 태그로 다시 설치하면 돼요. 다시 설치해도 허용 목록, 저장된 스냅샷, 켜짐/꺼짐 상태는 그대로 남아요. 설치된 버전은 `herdr plugin list`로 확인할 수 있어요.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.2 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.7.3 --yes
 herdr plugin uninstall devicki.respawn
 ```
 

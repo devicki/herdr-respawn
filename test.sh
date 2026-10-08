@@ -51,7 +51,8 @@ chmod +x "$work/bin/busctl" "$work/bin/systemctl"
 # A stand-in claude: a process named claude that keeps its arguments and waits.
 printf '#!/usr/bin/env bash\nexec -a claude python3 -c "import time; time.sleep(1e9)" "$@"\n' >"$work/bin/claude"
 chmod +x "$work/bin/claude"
-# A stand-in plugin whose two pane entrypoints run the same command, like memex's.
+# A stand-in plugin whose two pane entrypoints run the same command, like memex's, given as a
+# path relative to the plugin, like reviewr's `bin/herdr-reviewr`.
 mkdir -p "$work/viewer/bin"
 printf '#!/usr/bin/env bash\nwhile :; do sleep 1; done\n' >"$work/viewer/bin/viewer"
 chmod +x "$work/viewer/bin/viewer"
@@ -65,12 +66,12 @@ platforms = ["linux", "macos"]
 id = "main"
 title = "viewer"
 placement = "split"
-command = ["sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/viewer\""]
+command = ["bin/viewer"]
 [[panes]]
 id = "other"
 title = "viewer"
 placement = "zoomed"
-command = ["sh", "-c", "exec \"$HERDR_PLUGIN_ROOT/bin/viewer\""]
+command = ["bin/viewer"]
 EOF
 # A stand-in herdr-pager that writes down what it was asked to send.
 mkdir -p "$work/pager/bin"

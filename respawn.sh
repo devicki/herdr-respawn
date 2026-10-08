@@ -266,7 +266,9 @@ restore_locked() {
     plug=$(jq -r '.plugin // empty' <<<"$e")
     if [ -n "$plug" ]; then
       # The plugin's current command for that entrypoint (its root moves on reinstall), with the
-      # environment Herdr gives plugin panes; exec, so quitting it closes the pane as before.
+      # environment Herdr gives plugin panes; exec, so quitting it closes the pane as before. A
+      # program given as a path relative to the plugin (`bin/herdr-reviewr`) is found from its root,
+      # as Herdr does, not from the pane's directory.
       a0=$plug
       cmd=$(jq -r --argjson e "$e" --arg cur "$cur" --arg cfg "$("$H" plugin config-dir "$plug" 2>/dev/null)" \
         --arg st "${dir%/*}/$plug" "$q"'
@@ -275,7 +277,9 @@ restore_locked() {
         | " " + (if $e.cwd != $cur then "cd \($e.cwd | q) && " else "" end) + "exec "
           + (["env", "HERDR_PLUGIN_ID=\($pl.plugin_id)", "HERDR_PLUGIN_ROOT=\($pl.plugin_root)",
               "HERDR_PLUGIN_CONFIG_DIR=\($cfg)", "HERDR_PLUGIN_STATE_DIR=\($st)",
-              "HERDR_PLUGIN_ENTRYPOINT_ID=\($ep.id)"] + $ep.command | map(q) | join(" "))' <<<"$plugins_now")
+              "HERDR_PLUGIN_ENTRYPOINT_ID=\($ep.id)"]
+             + ($ep.command | .[0] |= (if contains("/") and (startswith("/") | not) then "\($pl.plugin_root)/\(ltrimstr("./"))" else . end))
+             | map(q) | join(" "))' <<<"$plugins_now")
       [ -n "$cmd" ] || continue
     else
       # A saved absolute path may be gone after a reboot (tmp mounts, Nix, AppImage); let the shell's PATH find it by name.

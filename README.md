@@ -18,7 +18,7 @@ There is nothing to set up for the first three. Install it, and it starts saving
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.2
+herdr plugin install devicki/herdr-respawn --ref v0.7.3
 ```
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
@@ -161,7 +161,7 @@ pane_history = true
 Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.2 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.7.3 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
