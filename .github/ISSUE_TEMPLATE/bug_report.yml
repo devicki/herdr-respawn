@@ -1,0 +1,53 @@
+name: Bug report
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: herdr
+    attributes:
+      label: Herdr version
+      description: "`herdr --version`"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: herdr-respawn version
+      description: "`herdr plugin list` shows it (for example v0.7.3)"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      description: For example Ubuntu 24.04 or macOS 15
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Anything else about your setup
+      description: "Shell in the panes (bash, zsh, fish)"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "Output of `herdr plugin log list --plugin devicki.respawn`, if relevant. Remove tokens, passwords and private paths."
+      render: shell
