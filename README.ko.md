@@ -1,6 +1,6 @@
 # herdr-respawn
 
-[English](README.md) | 한국어
+[English](README.md) | 한국어 | [日本語](README.ja.md) | [繁體中文](README.zh-TW.md)
 
 ![herdr-respawn: 재시작으로 페인의 프로세스가 모두 꺼져도 respawn이 되살려요](docs/demo.svg)
 
@@ -18,7 +18,7 @@ Herdr는 워크스페이스, 탭, 페인, cwd를 스스로 복원하고, 지원�
 ## 설치
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.3
+herdr plugin install devicki/herdr-respawn --ref v0.7.4
 ```
 
 `--ref`는 설치할 릴리스를 고정해요. 빼면 `main` 브랜치의 최신 코드가 설치돼요. 릴리스 목록은 [tags](https://github.com/devicki/herdr-respawn/tags)에서 볼 수 있어요.
@@ -53,7 +53,7 @@ delivery = "herdr"      # 데스크톱 알림을 원하면 "terminal" 또는 "sy
 claude x2, lazygit, persiyanov.reviewr
 ```
 
-알림은 herdr-pager의 설정과 언어(`pager.conf`에 `lang = ko`면 한국어)를 따르고, named session이면 세션 이름도 붙여요. 따로 설정할 건 없고, herdr-pager가 없으면 지금과 똑같이 동작해요.
+알림은 herdr-pager의 설정과 언어(`pager.conf`의 `lang = ko`, `ja`, `zh-TW`에 따라 한국어, 일본어, 번체 중국어)를 따르고, named session이면 세션 이름도 붙여요. 따로 설정할 건 없고, herdr-pager가 없으면 지금과 똑같이 동작해요.
 
 ## 허용 목록
 
@@ -161,7 +161,7 @@ pane_history = true
 Herdr에는 업데이트 명령이 없어서, 새 태그로 다시 설치하면 돼요. 다시 설치해도 허용 목록, 저장된 스냅샷, 켜짐/꺼짐 상태는 그대로 남아요. 설치된 버전은 `herdr plugin list`로 확인할 수 있어요.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.3 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.7.4 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -178,7 +178,7 @@ herdr plugin link .
 
 `docs/demo/record.sh`는 가상의 프로젝트로 구성한 격리된 Herdr에서 `docs/demo.svg`를 다시 녹화해요(`tmux`, `lazygit`, reviewr 설치용 네트워크 필요).
 
-릴리스할 때는 `herdr-plugin.toml`의 `version`을 올리고, 두 README의 `--ref`를 바꿔 커밋한 뒤 `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`를 실행하세요.
+릴리스할 때는 `herdr-plugin.toml`의 `version`을 올리고, 모든 README의 `--ref`를 바꿔 커밋한 뒤 `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`를 실행하세요.
 
 ## 라이선스
 

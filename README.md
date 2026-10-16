@@ -1,6 +1,6 @@
 # herdr-respawn
 
-English | [한국어](README.ko.md)
+English | [한국어](README.ko.md) | [日本語](README.ja.md) | [繁體中文](README.zh-TW.md)
 
 ![herdr-respawn: a restart takes every pane process down, and respawn brings them back](docs/demo.svg)
 
@@ -18,7 +18,7 @@ There is nothing to set up for the first three. Install it, and it starts saving
 ## Install
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.3
+herdr plugin install devicki/herdr-respawn --ref v0.7.4
 ```
 
 `--ref` pins a release. Leave it out to track `main` instead. Releases are listed under [tags](https://github.com/devicki/herdr-respawn/tags).
@@ -53,7 +53,7 @@ With [herdr-pager](https://github.com/devicki/herdr-pager) installed and enabled
 claude x2, lazygit, persiyanov.reviewr
 ```
 
-It goes out with herdr-pager's own settings and language (`lang = ko` in `pager.conf` for Korean), and names the session when it is a named one. There is nothing to set up, and without herdr-pager nothing changes.
+It goes out with herdr-pager's own settings and language (`lang = ko`, `ja` or `zh-TW` in `pager.conf` for Korean, Japanese or Traditional Chinese), and names the session when it is a named one. There is nothing to set up, and without herdr-pager nothing changes.
 
 ## Allowlist
 
@@ -161,7 +161,7 @@ pane_history = true
 Herdr has no update command; reinstall at the new tag. The allowlist, the saved snapshot and the enabled state survive a reinstall, and `herdr plugin list` shows the installed version.
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.3 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.7.4 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
@@ -178,7 +178,7 @@ herdr plugin link .
 
 `docs/demo/record.sh` re-records `docs/demo.svg` in an isolated Herdr with a made-up project (needs `tmux`, `lazygit` and network access for reviewr).
 
-To release, bump `version` in `herdr-plugin.toml`, update the `--ref` in both READMEs, commit, then `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
+To release, bump `version` in `herdr-plugin.toml`, update the `--ref` in every README, commit, then `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
 
 ## License
 

@@ -205,6 +205,8 @@ notify_pager() { # count, what came back
   lang=$(sed -n 's/^[[:space:]]*lang[[:space:]]*=[[:space:]]*//p' "$pcfg/pager.conf" 2>/dev/null | tail -n1)
   case "$lang" in
   (ko*) title="Herdr 재시작$session · respawn이 페인 $1개 복원" ;;
+  (ja*) title="Herdr 再起動$session · respawn がペイン $1 個を復元" ;;
+  (zh*) title="Herdr 已重新啟動$session · respawn 已還原 $1 個窗格" ;;
   (*) title="Herdr restarted$session · respawn restored $1 pane(s)" ;;
   esac
   HERDR_PLUGIN_CONFIG_DIR=$pcfg HERDR_PLUGIN_STATE_DIR="${dir%/*}/devicki.pager" \
