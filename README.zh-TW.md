@@ -18,7 +18,7 @@ Herdr 會自行還原工作區、分頁、窗格和 cwd，也會重新開啟支�
 ## 安裝
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.4
+herdr plugin install devicki/herdr-respawn --ref v0.7.5
 ```
 
 `--ref` 會固定在某個版本。省略的話則會追蹤 `main`。所有版本都列在 [tags](https://github.com/devicki/herdr-respawn/tags)。
@@ -161,7 +161,7 @@ pane_history = true
 Herdr 沒有更新命令；請以新的 tag 重新安裝。允許清單、已儲存的快照和啟用狀態在重新安裝後都會保留，`herdr plugin list` 會顯示已安裝的版本。
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.4 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.7.5 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
