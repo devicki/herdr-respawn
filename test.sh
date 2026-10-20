@@ -171,13 +171,16 @@ sleep 3
 [ "$(grep -c 'herdr starting' "$log")" -gt "$starts" ] && ! h pane list >/dev/null 2>&1 ||
   { echo "FAIL: a server started during the shutdown kept running" >&2; fail=1; }
 [ "$(md5sum <"$snapfile")" = "$before" ] || { echo "FAIL: the snapshot changed during the shutdown" >&2; fail=1; }
-# The machine is back: the snapshot is restored as usual.
+# The machine is back: the snapshot is restored as usual, though now the shells take longer
+# than the first 15 seconds to start (pyenv waiting out a stale lock), so it takes the retries.
 rm -f "$work/stopping"
+printf 'sleep 20\n' >"$work/home/.bashrc"
 "${tmx[@]}" kill-server 2>/dev/null
 h server stop >/dev/null 2>&1
 sleep 1
 client
-sleep 7
+sleep 28
 check "$p1" htop
+check "$p3" "vim notes.txt"
 [ "$fail" -eq 0 ] && echo PASS
 exit "$fail"

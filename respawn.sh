@@ -243,13 +243,42 @@ restore_locked() {
     (t == "" && sub(/^[[:space:]]*session\.startup_per_agent_delay_ms[[:space:]]*=[[:space:]]*/, "")) { ms = $0 + 0; set = 1 }
     END { if (!set || ms < 0) ms = 100; printf "%.3f", ms / 1000 }' "$cfg" 2>/dev/null)
   [ -n "$gap" ] || gap=0.100
-  started=""
   plugins_now=$("$H" plugin list --json 2>/dev/null)
   # Panes come back with shells that are still starting: rc files and prompt tools run in the
-  # foreground for a moment (fish loading its config, say). Give them all until the deadline to
-  # settle; a pane still busy after it is running something and is left alone.
-  deadline=$(($(date +%s) + 15))
-  restored=$(jq -c '.panes[]' "$state" | while IFS= read -r e; do
+  # foreground for a moment (fish loading its config, say). Give them all 15 seconds to settle.
+  later=$(mktemp "$state.tmp.XXXXXX") || return 1
+  report "$(jq -c '.panes[]' "$state" | relaunch $(($(date +%s) + 15)) 3>"$later")"
+  # Adopt the snapshot for this server run so saves resume.
+  tmp=$(mktemp "$state.tmp.XXXXXX") && jq --arg i "$instance" '.instance = $i' "$state" >"$tmp" && mv "$tmp" "$state"
+  # A shell can stay busy for a minute or more (pyenv waiting out a lock a shutdown left behind).
+  # Its pane is tried again every 2 seconds for 2 more minutes, in the background so startup
+  # ends; a pane still busy after that is running something and is left alone. A new server run
+  # (its socket is new) stops the retries, as its own restore takes over.
+  # shortcut: the retried entries live only in this process, so a restart within those 2 minutes
+  # loses them; keep them in the snapshot if that happens in practice.
+  if [ -s "$later" ]; then
+    (
+      trap '' HUP
+      end=$(($(date +%s) + 120))
+      while [ -s "$later" ] && [ "$(date +%s)" -lt "$end" ] &&
+        [ "$(stat -c %Y "$sock" 2>/dev/null || stat -f %m "$sock" 2>/dev/null)" = "$instance" ]; do
+        sleep 2
+        report "$(relaunch 0 <"$later" 3>"$later.next")"
+        mv -f "$later.next" "$later"
+      done
+      rm -f "$later"
+    ) </dev/null >/dev/null 2>&1 &
+  else
+    rm -f "$later"
+  fi
+}
+
+# Types each snapshot entry read from stdin back into its pane once that pane is a bare shell,
+# waiting until unix time $1 at most, and prints "<pane> <name>" for each one. An entry whose
+# pane is still busy by then is passed on to fd 3; one whose pane is gone is dropped.
+relaunch() {
+  local deadline=$1 started="" e p info cur plug a0 cmd
+  while IFS= read -r e; do
     p=$(jq -r .pane <<<"$e")
     [ "$agents" = true ] || [ -z "$(jq -r '.agent // empty' <<<"$e")" ] || continue
     # Only type into a pane that came back as a bare shell: the shell alone in the foreground,
@@ -260,7 +289,7 @@ restore_locked() {
       jq -e '.result.process_info.foreground_processes as $f | ($f | length) == 1
         and ($f[0].argv[0] // "" | split("/") | last | ltrimstr("-") | IN("bash", "zsh", "fish", "sh", "dash", "ksh"))
         and ($f[0].argv[1:] | all(startswith("-") and . != "-c"))' <<<"$info" >/dev/null && break
-      [ "$(date +%s)" -lt "$deadline" ] || continue 2
+      [ "$(date +%s)" -lt "$deadline" ] || { printf '%s\n' "$e" >&3; continue 2; }
       sleep 0.5
     done
     cur=$(jq -r '.result.process_info.foreground_processes[0].cwd // ""' <<<"$info")
@@ -299,16 +328,17 @@ restore_locked() {
       started=1
     fi
     "$H" pane run "$p" "$cmd" >/dev/null && printf '%s %s\n' "$p" "${a0##*/}"
-  done)
-  if [ -n "$restored" ]; then
-    sed 's/^/restored /' <<<"$restored"
-    n=$(grep -c '' <<<"$restored")
-    what=$(cut -d' ' -f2 <<<"$restored" | sort | uniq -c | awk '{printf "%s%s", sep, $2 ($1 > 1 ? " x" $1 : ""); sep=", "}')
-    "$H" notification show "respawn: $n pane(s) restored" --body "$what" >/dev/null 2>&1 || :
-    notify_pager "$n" "$what"
-  fi
-  # Adopt the snapshot for this server run so saves resume.
-  tmp=$(mktemp "$state.tmp.XXXXXX") && jq --arg i "$instance" '.instance = $i' "$state" >"$tmp" && mv "$tmp" "$state"
+  done
+}
+
+report() { # the "<pane> <name>" lines relaunch printed
+  local n what
+  [ -n "$1" ] || return 0
+  sed 's/^/restored /' <<<"$1"
+  n=$(grep -c '' <<<"$1")
+  what=$(cut -d' ' -f2 <<<"$1" | sort | uniq -c | awk '{printf "%s%s", sep, $2 ($1 > 1 ? " x" $1 : ""); sep=", "}')
+  "$H" notification show "respawn: $n pane(s) restored" --body "$what" >/dev/null 2>&1 || :
+  notify_pager "$n" "$what"
 }
 
 case "${1:-}" in

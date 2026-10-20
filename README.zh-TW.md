@@ -30,7 +30,7 @@ herdr plugin install devicki/herdr-respawn --ref v0.7.4
 ## 運作方式
 
 - **儲存**：每當發生 `pane.focused`、`tab.focused`、`workspace.focused`、`pane.closed` 和 `pane.agent_status_changed` 事件時，若各窗格的前景命令（argv）在允許清單中，就會把該命令和 cwd 寫入外掛的狀態目錄。代理程式會連同工作階段 id 一起儲存（[詳細說明](#代理程式保留啟動參數)），外掛窗格則以其所屬外掛儲存（[詳細說明](#外掛窗格)）。若要隨時手動儲存，請執行 `respawn: save now` 動作。
-- **還原**：Herdr 還原工作階段後，會執行啟動 hook。它會用 `herdr pane run` 把每個儲存的命令重新輸入到原本的窗格，背景的分頁和工作區也一樣，但只限於該窗格已回到空白的 shell 提示字元時：也就是前景只有一個互動式 shell。仍在啟動中的 shell（rc 檔、fish 設定、提示字元工具）最多有 15 秒可以就緒；超過時間後仍在執行某些東西的窗格（腳本、`sh -c` 工作、進行中的 handoff）則不會被動到。
+- **還原**：Herdr 還原工作階段後，會執行啟動 hook。它會用 `herdr pane run` 把每個儲存的命令重新輸入到原本的窗格，背景的分頁和工作區也一樣，但只限於該窗格已回到空白的 shell 提示字元時：也就是前景只有一個互動式 shell。仍在啟動中的 shell（rc 檔、fish 設定、提示字元工具）有 15 秒可以就緒；仍在忙的窗格會在背景每 2 秒再檢查一次，最多再等 2 分鐘（pyenv rehash 等待鎖定檔時，shell 可能停住約 1 分鐘）；超過時間後仍在執行某些東西的窗格（腳本、`sh -c` 工作、進行中的 handoff）則不會被動到。
   - 命令前面會加上一個空格，讓它不會留在 shell 歷史紀錄中（fish 預設如此，bash 需設定 `HISTCONTROL=ignorespace`/`ignoreboth`，zsh 需設定 `setopt HIST_IGNORE_SPACE`）。
   - 若窗格的 shell 不在儲存的目錄中，命令前面會加上 `cd <dir> &&`。如果該目錄已不存在，命令就不會執行。
   - 重新開機後已不存在的絕對程式路徑（或位於暫存目錄、`/nix/store` 底下的路徑）會換成程式名稱，讓 shell 透過 `PATH` 找到它。
