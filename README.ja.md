@@ -18,7 +18,7 @@ Herdr はワークスペース、タブ、ペイン、cwd を自分で復元し�
 ## インストール
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.5
+herdr plugin install devicki/herdr-respawn --ref v0.7.6
 ```
 
 `--ref` はリリースを固定します。省略すると、代わりに `main` を追従します。リリースの一覧は [tags](https://github.com/devicki/herdr-respawn/tags) にあります。
@@ -162,7 +162,7 @@ pane_history = true
 Herdr には更新コマンドがないため、新しいタグで再インストールします。許可リスト、保存されたスナップショット、有効/無効の状態は再インストール後も残ります。インストール済みのバージョンは `herdr plugin list` で確認できます。
 
 ```sh
-herdr plugin install devicki/herdr-respawn --ref v0.7.5 --yes
+herdr plugin install devicki/herdr-respawn --ref v0.7.6 --yes
 herdr plugin uninstall devicki.respawn
 ```
 
