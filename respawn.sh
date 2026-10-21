@@ -64,7 +64,9 @@ pick='
       "--allow-dangerously-skip-permissions": 0, "--permission-mode": 1, "--model": 1}},
     codex: {pre: ["resume"], post: [], keep: {"--dangerously-bypass-approvals-and-sandbox": 0,
       "-s": 1, "--sandbox": 1, "-a": 1, "--ask-for-approval": 1, "-m": 1, "--model": 1}},
-    devin: {pre: [], post: ["--resume"], keep: {"--permission-mode": 1, "--model": 1}}
+    devin: {pre: [], post: ["--resume"], keep: {"--permission-mode": 1, "--model": 1}},
+    grok: {pre: [], post: ["--resume"], keep: {"--always-approve": 0, "--permission-mode": 1,
+      "--sandbox": 1, "-m": 1, "--model": 1}}
   };
   # The flags in $keep, with as many values as each takes; everything else (prompts, the old
   # --resume/--continue) is dropped.
@@ -323,7 +325,7 @@ relaunch() {
         .argv[0] = $a0
         | " " + (if .cwd != $cur then "cd \(.cwd | q) && " else "" end) + (.argv | map(q) | join(" "))' <<<"$e")
     fi
-    if jq -e '.agent or (.argv[0] // "" | split("/") | last | IN("claude", "codex", "devin"))' <<<"$e" >/dev/null; then
+    if jq -e '.agent or (.argv[0] // "" | split("/") | last | IN("claude", "codex", "devin", "grok"))' <<<"$e" >/dev/null; then
       [ -z "$started" ] || sleep "$gap"
       started=1
     fi

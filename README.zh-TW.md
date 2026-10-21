@@ -83,17 +83,18 @@ Herdr 會自行重新開啟 Claude Code、Codex、Devin 等代理程式，但一
 resume_agents_on_restore = false
 ```
 
-之後 respawn 就會自己恢復 Claude Code、Codex 和 Devin，使用 Herdr 記錄的工作階段 id 以及以下啟動參數：
+之後 respawn 就會自己恢復 Claude Code、Codex、Devin 和 Grok，使用 Herdr 記錄的工作階段 id 以及以下啟動參數：
 
 | 代理程式 | 恢復方式 | 保留的參數 |
 | --- | --- | --- |
 | Claude Code | `claude <flags> --resume <id>` | `--dangerously-skip-permissions`, `--allow-dangerously-skip-permissions`, `--permission-mode`, `--model` |
 | Codex | `codex resume <flags> <id>` | `--dangerously-bypass-approvals-and-sandbox`, `-s`/`--sandbox`, `-a`/`--ask-for-approval`, `-m`/`--model` |
 | Devin | `devin <flags> --resume <id>` | `--permission-mode`, `--model` |
+| Grok | `grok <flags> --resume <id>` | `--always-approve`, `--permission-mode`, `--sandbox`, `-m`/`--model` |
 
 其他參數和任何提示詞都會被捨棄。Herdr 的代理程式恢復功能開啟時（預設值），respawn 不會動到代理程式，因為兩者會同時輸入到同一個窗格。
 
-- 關閉後，這三種以外的代理程式會回來變成空白的 shell。如果你有使用它們，請保持開啟。
+- 關閉後，這四種以外的代理程式會回來變成空白的 shell。如果你有使用它們，請保持開啟。
 - 代理程式會一次啟動一個，間隔 100 ms，與 Herdr 自己的恢復方式相同。每個代理程式都會啟動自己的執行環境和 MCP 伺服器，而且 Claude Code 工作階段會共用設定檔，所以同時啟動太多會造成負載尖峰。工作階段很多時，請用 Herdr 自己的設定加大間隔，respawn 也會遵循：
 
   ```toml
@@ -103,7 +104,7 @@ resume_agents_on_restore = false
 
   TUI 和外掛窗格會立即啟動。
 - 從 Herdr 0.9.2 起，代理程式可以自行回報包含參數在內的恢復命令。這類代理程式在 Herdr 的恢復功能開啟時也會保留啟動參數，不需要 respawn 做任何事。
-- 代理程式必須以自己的名稱（`claude`、`codex`、`devin`）執行；透過 `npx` 等包裝程式啟動的無法辨識。
+- 代理程式必須以自己的名稱（`claude`、`codex`、`devin`、`grok`）執行；透過 `npx` 等包裝程式啟動的無法辨識。
 - Claude Code 的 agent view（`claude agents`）用來管理背景工作階段，本身沒有工作階段，所以會完全依照當初的啟動方式（包含參數）重新執行。這在 Herdr 的代理程式恢復功能開啟時也有效。
 
 ## 外掛窗格

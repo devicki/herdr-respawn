@@ -83,17 +83,18 @@ Herdr は Claude Code、Codex、Devin などのエージェントを自分で再
 resume_agents_on_restore = false
 ```
 
-すると respawn が、Herdr が記録したセッション id と次の起動フラグで、Claude Code、Codex、Devin を自分で再開します。
+すると respawn が、Herdr が記録したセッション id と次の起動フラグで、Claude Code、Codex、Devin、Grok を自分で再開します。
 
 | エージェント | 再開に使うコマンド | 保持するフラグ |
 | --- | --- | --- |
 | Claude Code | `claude <フラグ> --resume <id>` | `--dangerously-skip-permissions`, `--allow-dangerously-skip-permissions`, `--permission-mode`, `--model` |
 | Codex | `codex resume <フラグ> <id>` | `--dangerously-bypass-approvals-and-sandbox`, `-s`/`--sandbox`, `-a`/`--ask-for-approval`, `-m`/`--model` |
 | Devin | `devin <フラグ> --resume <id>` | `--permission-mode`, `--model` |
+| Grok | `grok <フラグ> --resume <id>` | `--always-approve`, `--permission-mode`, `--sandbox`, `-m`/`--model` |
 
 それ以外のフラグやプロンプトは除きます。Herdr のエージェント再開が有効なとき(標準)は、respawn はエージェントに手を付けません。2 つの仕組みが同じペインに入力してしまうためです。
 
-- 無効にすると、この 3 つ以外のエージェントは空のシェルとして戻ります。それらを使う場合は有効のままにしてください。
+- 無効にすると、この 4 つ以外のエージェントは空のシェルとして戻ります。それらを使う場合は有効のままにしてください。
 - エージェントは Herdr 自身の再開と同じく、100 ms 間隔で 1 つずつ起動します。各エージェントはランタイムと MCP サーバーを立ち上げ、Claude Code のセッションは設定ファイルを共有するため、一度に多数を起動すると負荷が急増します。セッションが多い場合は、Herdr 自身の設定で間隔を広げてください。respawn もこの値に従います。
 
   ```toml
@@ -103,7 +104,7 @@ resume_agents_on_restore = false
 
   TUI とプラグインペインはすぐに起動します。
 - Herdr 0.9.2 以降、エージェントはフラグを含む自分の再開コマンドを報告できます。そのようなエージェントは、Herdr の再開を有効にしたままでも起動フラグが保たれ、respawn は必要ありません。
-- エージェントは自分の名前(`claude`、`codex`、`devin`)で実行されている必要があります。`npx` などのラッパー経由で起動したものは認識されません。
+- エージェントは自分の名前(`claude`、`codex`、`devin`、`grok`)で実行されている必要があります。`npx` などのラッパー経由で起動したものは認識されません。
 - Claude Code の agent view(`claude agents`)はバックグラウンドのセッションを管理する画面で、それ自身のセッションを持たないため、フラグも含めて起動時のとおりに再実行します。これは Herdr のエージェント再開が有効なときにも動作します。
 
 ## プラグインペイン

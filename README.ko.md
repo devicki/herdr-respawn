@@ -83,17 +83,18 @@ Herdr는 Claude Code, Codex, Devin 같은 에이전트를 스스로 다시 열�
 resume_agents_on_restore = false
 ```
 
-그러면 respawn이 Herdr가 기록한 세션 id와 아래 실행 인자로 Claude Code, Codex, Devin을 직접 다시 열어요.
+그러면 respawn이 Herdr가 기록한 세션 id와 아래 실행 인자로 Claude Code, Codex, Devin, Grok을 직접 다시 열어요.
 
 | 에이전트 | 다시 여는 명령 | 유지하는 인자 |
 | --- | --- | --- |
 | Claude Code | `claude <인자> --resume <id>` | `--dangerously-skip-permissions`, `--allow-dangerously-skip-permissions`, `--permission-mode`, `--model` |
 | Codex | `codex resume <인자> <id>` | `--dangerously-bypass-approvals-and-sandbox`, `-s`/`--sandbox`, `-a`/`--ask-for-approval`, `-m`/`--model` |
 | Devin | `devin <인자> --resume <id>` | `--permission-mode`, `--model` |
+| Grok | `grok <인자> --resume <id>` | `--always-approve`, `--permission-mode`, `--sandbox`, `-m`/`--model` |
 
 그 밖의 인자와 프롬프트는 빼고 열어요. Herdr의 에이전트 복원이 켜져 있으면(기본값) respawn은 에이전트를 건드리지 않아요. 둘이 같은 페인에 동시에 입력하게 되기 때문이에요.
 
-- 복원을 끄면 이 세 가지 외의 에이전트는 빈 셸로 돌아와요. 다른 에이전트도 쓴다면 켜 두세요.
+- 복원을 끄면 이 네 가지 외의 에이전트는 빈 셸로 돌아와요. 다른 에이전트도 쓴다면 켜 두세요.
 - 에이전트는 Herdr의 기본 복원처럼 0.1초 간격으로 하나씩 켜요. 에이전트는 켤 때마다 런타임과 MCP 서버를 같이 띄우고, Claude Code 세션들은 설정 파일을 함께 쓰기 때문에 한꺼번에 켜면 순간 부하가 커져요. 세션이 많다면 Herdr 설정에서 간격을 늘리세요. respawn도 이 값을 따라요.
 
   ```toml
@@ -103,7 +104,7 @@ resume_agents_on_restore = false
 
   TUI와 플러그인 페인은 바로 켜요.
 - Herdr 0.9.2부터는 에이전트가 실행 옵션을 포함한 "다시 여는 명령"을 Herdr에 직접 알려 줄 수 있어요. 이런 에이전트는 Herdr 복원을 켜 둔 상태로도 실행 옵션이 유지돼서 respawn이 필요 없어요.
-- 에이전트가 자기 이름(`claude`, `codex`, `devin`)으로 실행돼야 해요. `npx` 같은 래퍼로 실행한 경우는 인식하지 못해요.
+- 에이전트가 자기 이름(`claude`, `codex`, `devin`, `grok`)으로 실행돼야 해요. `npx` 같은 래퍼로 실행한 경우는 인식하지 못해요.
 - Claude Code의 agent view(`claude agents`)는 백그라운드 세션을 관리하는 화면이라 다시 열 세션이 없어요. 그래서 실행했던 인자 그대로 다시 실행해요. Herdr의 에이전트 복원이 켜져 있어도 동작해요.
 
 ## 플러그인 페인
